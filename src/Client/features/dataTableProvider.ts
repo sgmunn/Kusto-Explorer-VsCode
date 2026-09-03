@@ -53,10 +53,10 @@ export interface IDataTableView {
     dispose(): void;
 }
 
-/** A row picked in a result grid, using its stable source-table index. */
+/** Rows picked in a result grid, using their stable source-table indices. */
 export interface ResultRowSelection {
     table: ResultTable;
-    rowIndex: number;
+    rowIndexes: number[];
 }
 
 /** Provider for creating data table views bound to webview regions. */
@@ -141,12 +141,13 @@ class DataTableView implements IDataTableView {
                 const sel = msg.selection as { rows: number[]; cols: number[] } | null | undefined;
                 this.currentSelection = sel ?? null;
                 this.resolveExpression();
+                this.emitRowSelection(sel?.rows ?? []);
             }
             if (msg.command === 'setColumnView') {
                 this.applyColumnViewFromWebview(msg.columns);
             }
             if (msg.command === 'selectRow' && typeof msg.rowIndex === 'number' && Number.isInteger(msg.rowIndex) && msg.rowIndex >= 0 && msg.rowIndex < this.table.rows.length) {
-                this.onSelectRow({ table: this.table, rowIndex: msg.rowIndex });
+                this.emitRowSelection([msg.rowIndex]);
             }
         });
 
@@ -175,6 +176,13 @@ class DataTableView implements IDataTableView {
         return {
             dispose: () => { this.viewStateListeners.delete(listener); }
         };
+    }
+
+    private emitRowSelection(rowIndexes: unknown[]): void {
+        const selected = [...new Set(rowIndexes.filter((index): index is number =>
+            typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < this.table.rows.length
+        ))];
+        this.onSelectRow({ table: this.table, rowIndexes: selected });
     }
 
     /**

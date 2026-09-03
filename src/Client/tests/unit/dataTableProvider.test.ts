@@ -119,7 +119,7 @@ describe('SimpleDataTableProvider', () => {
 
             expect(selected).toHaveLength(1);
             expect(selected[0]).toMatchObject({
-                rowIndex: 1,
+                rowIndexes: [1],
                 table: { name: 'TestTable', rows: [['A', 10], ['B', 20], ['C', 30]] }
             });
         });

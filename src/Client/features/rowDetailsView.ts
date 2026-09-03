@@ -34,9 +34,9 @@ export class RowDetailsView implements vscode.WebviewViewProvider {
     }
 
     private buildHtml(selection: ResultRowSelection | undefined): string {
-        const body = !selection
+        const body = !selection || selection.rowIndexes.length === 0
             ? '<p class="empty">Select a result row to inspect its values here.</p>'
-            : this.buildRow(selection.table, selection.rowIndex);
+            : this.buildSelection(selection);
         return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
             body { color: var(--vscode-foreground); background: var(--vscode-sideBar-background); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); margin: 0; }
             header { border-bottom: 1px solid var(--vscode-panel-border); padding: 10px 12px 8px; position: sticky; top: 0; background: var(--vscode-sideBar-background); }
@@ -51,6 +51,15 @@ export class RowDetailsView implements vscode.WebviewViewProvider {
             .null { color: var(--vscode-descriptionForeground); font-style: italic; }
             pre { background: var(--vscode-textCodeBlock-background); border-radius: 3px; margin: 0; overflow: auto; padding: 7px; white-space: pre-wrap; }
         </style></head><body>${body}</body></html>`;
+    }
+
+    private buildSelection(selection: ResultRowSelection): string {
+        const merged = this.findMergedFields(selection.table, selection.rowIndexes);
+        if (merged.length === 0) return this.buildRow(selection.table, selection.rowIndexes[0]!);
+        const fields = merged.map(field =>
+            `<div class="field"><dt>${escapeHtml(field.name)}<span class="type">merged ${field.total}-part message</span></dt><dd>${this.formatMergedValue(field.value)}</dd></div>`
+        ).join('');
+        return `<header><h1>${escapeHtml(selection.table.name)}</h1><div class="meta">${selection.rowIndexes.length} selected rows · multi-part message assembled</div></header><dl>${fields}</dl>`;
     }
 
     private buildRow(table: ResultTable, rowIndex: number): string {
@@ -68,6 +77,39 @@ export class RowDetailsView implements vscode.WebviewViewProvider {
             return `<pre>${escapeHtml(JSON.stringify(value, null, 2))}</pre>`;
         }
         return escapeHtml(typeof value === 'string' ? value : String(value));
+    }
+
+    /** Finds only complete, unambiguous `1/N:` … `N/N:` sequences. */
+    private findMergedFields(table: ResultTable, rowIndexes: number[]): Array<{ name: string; total: number; value: string }> {
+        if (rowIndexes.length < 2) return [];
+        return table.columns.flatMap((column, columnIndex) => {
+            const parts = rowIndexes.map(rowIndex => this.parseMultipart(table.rows[rowIndex]?.[columnIndex]));
+            if (parts.some(part => !part)) return [];
+            const messageParts = parts as Array<{ part: number; total: number; value: string }>;
+            const total = messageParts[0]!.total;
+            if (total !== rowIndexes.length || messageParts.some(part => part.total !== total)) return [];
+            const byPart = new Map(messageParts.map(part => [part.part, part]));
+            if (byPart.size !== total || Array.from({ length: total }, (_, i) => !byPart.has(i + 1)).some(Boolean)) return [];
+            return [{ name: column.name, total, value: Array.from(byPart.values()).sort((a, b) => a.part - b.part).map(part => part.value).join('') }];
+        });
+    }
+
+    private parseMultipart(value: unknown): { part: number; total: number; value: string } | undefined {
+        if (typeof value !== 'string') return undefined;
+        const match = /^(\d+)\s*\/\s*(\d+)\s*:\s?([\s\S]*)$/.exec(value);
+        if (!match) return undefined;
+        const part = Number(match[1]);
+        const total = Number(match[2]);
+        if (!Number.isInteger(part) || !Number.isInteger(total) || part < 1 || total < 2 || part > total) return undefined;
+        return { part, total, value: match[3] ?? '' };
+    }
+
+    private formatMergedValue(value: string): string {
+        try {
+            return `<pre>${escapeHtml(JSON.stringify(JSON.parse(value), null, 2))}</pre>`;
+        } catch {
+            return escapeHtml(value);
+        }
     }
 
 }
