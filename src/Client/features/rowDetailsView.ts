@@ -130,6 +130,7 @@ export class RowDetailsView implements vscode.WebviewViewProvider {
             .meta { color: var(--vscode-descriptionForeground); font-size: 11px; }
             button { background: transparent; border: 1px solid var(--vscode-button-border, transparent); border-radius: 2px; color: var(--vscode-textLink-foreground); cursor: pointer; font: inherit; font-size: 11px; margin-top: 7px; padding: 2px 5px; }
             button:hover { background: var(--vscode-toolbar-hoverBackground); }
+            input[type="search"] { background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border); border-radius: 2px; color: var(--vscode-input-foreground); font: inherit; margin-top: 7px; padding: 3px 5px; width: calc(100% - 12px); }
             .empty { color: var(--vscode-descriptionForeground); line-height: 1.45; margin: 14px 12px; }
             dl { margin: 0; }
             .field { border-bottom: 1px solid var(--vscode-widget-border); padding: 9px 12px; }
@@ -139,9 +140,58 @@ export class RowDetailsView implements vscode.WebviewViewProvider {
             .null { color: var(--vscode-descriptionForeground); font-style: italic; }
             pre { background: var(--vscode-textCodeBlock-background); border-radius: 3px; margin: 0; overflow: auto; padding: 7px; white-space: pre-wrap; }
             body.no-wrap dd, body.no-wrap pre { overflow-wrap: normal; white-space: pre; }
-        </style></head><body class="${wrapClass}">${body}<script>
+            mark { background: var(--vscode-editor-findMatchHighlightBackground, #ea5c0055); color: inherit; }
+        </style></head><body class="${wrapClass}"><main data-row-details>${body}</main><script>
             const vscode = acquireVsCodeApi();
             document.querySelector('[data-command="toggleWordWrap"]')?.addEventListener('click', () => vscode.postMessage({ command: 'toggleWordWrap' }));
+            const findInput = document.querySelector('[data-find]');
+            const details = document.querySelector('[data-row-details]');
+            function clearHighlights() {
+                details.querySelectorAll('mark[data-find-match]').forEach(mark => mark.replaceWith(document.createTextNode(mark.textContent)));
+                details.normalize();
+            }
+            function highlight(query) {
+                clearHighlights();
+                if (!query) return;
+                const queryLower = query.toLocaleLowerCase();
+                const walker = document.createTreeWalker(details, NodeFilter.SHOW_TEXT);
+                const textNodes = [];
+                while (walker.nextNode()) textNodes.push(walker.currentNode);
+                let firstMatch;
+                textNodes.forEach(node => {
+                    const text = node.textContent;
+                    const lower = text.toLocaleLowerCase();
+                    let start = 0;
+                    let index = lower.indexOf(queryLower, start);
+                    if (index === -1) return;
+                    const fragment = document.createDocumentFragment();
+                    while (index !== -1) {
+                        fragment.append(document.createTextNode(text.slice(start, index)));
+                        const mark = document.createElement('mark');
+                        mark.dataset.findMatch = 'true';
+                        mark.textContent = text.slice(index, index + query.length);
+                        fragment.append(mark);
+                        if (!firstMatch) firstMatch = mark;
+                        start = index + query.length;
+                        index = lower.indexOf(queryLower, start);
+                    }
+                    fragment.append(document.createTextNode(text.slice(start)));
+                    node.replaceWith(fragment);
+                });
+                firstMatch?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+            findInput?.addEventListener('input', () => highlight(findInput.value));
+            document.addEventListener('keydown', event => {
+                if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
+                    event.preventDefault();
+                    findInput?.focus();
+                    findInput?.select();
+                }
+                if (event.key === 'Escape' && document.activeElement === findInput) {
+                    findInput.value = '';
+                    highlight('');
+                }
+            });
         </script></body></html>`;
     }
 
@@ -206,7 +256,7 @@ export class RowDetailsView implements vscode.WebviewViewProvider {
 
     private buildHeader(tableName: string, details: string): string {
         const wrapLabel = this.wordWrap ? 'Wrap lines: On' : 'Wrap lines: Off';
-        return `<header><h1>${escapeHtml(tableName)}</h1><div class="meta">${escapeHtml(details)}</div><button type="button" data-command="toggleWordWrap">${wrapLabel}</button></header>`;
+        return `<header><h1>${escapeHtml(tableName)}</h1><div class="meta">${escapeHtml(details)}</div><input type="search" data-find placeholder="Find in row" aria-label="Find in row"><button type="button" data-command="toggleWordWrap">${wrapLabel}</button></header>`;
     }
 
 }
