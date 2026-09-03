@@ -53,6 +53,12 @@ export interface IDataTableView {
     dispose(): void;
 }
 
+/** A row picked in a result grid, using its stable source-table index. */
+export interface ResultRowSelection {
+    table: ResultTable;
+    rowIndex: number;
+}
+
 /** Provider for creating data table views bound to webview regions. */
 export interface IDataTableProvider {
     /**
@@ -60,6 +66,8 @@ export interface IDataTableProvider {
      *             grid is rendered with the saved column order and widths.
      */
     createView(webview: IWebView, table: ResultTable, view?: ResultTableView): IDataTableView;
+    /** Subscribe to row picks from any grid created by this provider. */
+    onDidSelectRow(listener: (selection: ResultRowSelection) => void): { dispose(): void };
 }
 
 // ─── Implementation ─────────────────────────────────────────────────────────
@@ -103,7 +111,14 @@ class DataTableView implements IDataTableView {
     private viewState: ResultTableView | undefined;
     private readonly viewStateListeners = new Set<(state: ResultTableView) => void>();
 
-    constructor(webview: IWebView, server: IServer, clipboard: IClipboard, table: ResultTable, view?: ResultTableView) {
+    constructor(
+        webview: IWebView,
+        server: IServer,
+        clipboard: IClipboard,
+        table: ResultTable,
+        view: ResultTableView | undefined,
+        private readonly onSelectRow: (selection: ResultRowSelection) => void
+    ) {
         this.webview = webview;
         this.server = server;
         this.clipboard = clipboard;
@@ -129,6 +144,9 @@ class DataTableView implements IDataTableView {
             }
             if (msg.command === 'setColumnView') {
                 this.applyColumnViewFromWebview(msg.columns);
+            }
+            if (msg.command === 'selectRow' && typeof msg.rowIndex === 'number' && Number.isInteger(msg.rowIndex) && msg.rowIndex >= 0 && msg.rowIndex < this.table.rows.length) {
+                this.onSelectRow({ table: this.table, rowIndex: msg.rowIndex });
             }
         });
 
@@ -1383,6 +1401,14 @@ class DataTableView implements IDataTableView {
         if (!td) return;
         var pos = getCellPos(td);
         if (!pos) return;
+        // The gutter retains data-orig-row after sort, filter, and paging.
+        // Tell the host about every cell click so the row inspector follows
+        // the user's scan even when the selection is only a single cell.
+        var rowGutter = td.parentNode && td.parentNode.cells ? td.parentNode.cells[0] : null;
+        var sourceRow = rowGutter ? Number(rowGutter.getAttribute('data-orig-row')) : NaN;
+        if (Number.isInteger(sourceRow) && sourceRow >= 0 && window._vscodeApi) {
+            window._vscodeApi.postMessage({ command: 'selectRow', rowIndex: sourceRow, _token: token });
+        }
         if (pos.c === 0) {
             if (e.shiftKey && selAnchor) {
                 // Shift+drag on the gutter extends the row range from the
@@ -1852,6 +1878,7 @@ class DataTableView implements IDataTableView {
 export class DataTableProvider implements IDataTableProvider {
     private readonly server: IServer;
     private readonly clipboard: IClipboard;
+    private readonly rowSelectionListeners = new Set<(selection: ResultRowSelection) => void>();
 
     constructor(server: IServer, clipboard: IClipboard) {
         this.server = server;
@@ -1859,6 +1886,15 @@ export class DataTableProvider implements IDataTableProvider {
     }
 
     createView(webview: IWebView, table: ResultTable, view?: ResultTableView): IDataTableView {
-        return new DataTableView(webview, this.server, this.clipboard, table, view);
+        return new DataTableView(webview, this.server, this.clipboard, table, view, (selection) => {
+            for (const listener of this.rowSelectionListeners) {
+                try { listener(selection); } catch { /* listeners are best-effort */ }
+            }
+        });
+    }
+
+    onDidSelectRow(listener: (selection: ResultRowSelection) => void): { dispose(): void } {
+        this.rowSelectionListeners.add(listener);
+        return { dispose: () => this.rowSelectionListeners.delete(listener) };
     }
 }

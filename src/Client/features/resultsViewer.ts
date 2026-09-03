@@ -15,6 +15,7 @@ import type { IChartProvider, IChartView } from './chartProvider';
 import { ChartAspectRatio } from './chartProvider';
 import type { IChartEditorProvider, IChartEditorView } from './chartEditorProvider';
 import type { IDataTableProvider, IDataTableView } from './dataTableProvider';
+import { RowDetailsView, rowDetailsViewId } from './rowDetailsView';
 import type { IWebView } from './webview';
 import { escapeHtml } from './html';
 
@@ -415,6 +416,7 @@ export class ResultsViewer {
     private readonly chartEditorProvider: IChartEditorProvider;
     private readonly dataTableProvider: IDataTableProvider;
     private readonly htmlBuilder: DocumentViewProvider;
+    private readonly rowDetailsView = new RowDetailsView();
 
     // ─── Per-panel state (exposed to DocumentViewProvider via IViewerPanelState) ─
     /** Map from webview to its viewer state. */
@@ -489,6 +491,11 @@ export class ResultsViewer {
         this.chartEditorProvider = chartEditorProvider;
         this.dataTableProvider = dataTableProvider;
         this.htmlBuilder = new DocumentViewProvider(this.createPanelStateAccessor(), chartProvider, chartEditorProvider, dataTableProvider);
+
+        context.subscriptions.push(
+            vscode.window.registerWebviewViewProvider(rowDetailsViewId, this.rowDetailsView, { webviewOptions: { retainContextWhenHidden: true } }),
+            dataTableProvider.onDidSelectRow((selection) => this.rowDetailsView.show(selection))
+        );
 
         context.subscriptions.push(
             vscode.window.registerCustomEditorProvider(

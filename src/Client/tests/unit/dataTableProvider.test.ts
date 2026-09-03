@@ -105,6 +105,25 @@ describe('SimpleDataTableProvider', () => {
             expect(webview.handle).toHaveBeenCalledOnce();
         });
 
+        it('reports the raw source row when a grid row is selected', () => {
+            const webview = createMockWebView();
+            const selected: unknown[] = [];
+            provider.onDidSelectRow(selection => selected.push(selection));
+            provider.createView(webview, make2dTable());
+
+            const html: string = webview.setContent.mock.calls[0]![0];
+            const token = html.match(/var token = '(dt-[^']+)'/)?.[1];
+            expect(token).toBeDefined();
+
+            webview.simulateMessage({ command: 'selectRow', rowIndex: 1, _token: token });
+
+            expect(selected).toHaveLength(1);
+            expect(selected[0]).toMatchObject({
+                rowIndex: 1,
+                table: { name: 'TestTable', rows: [['A', 10], ['B', 20], ['C', 30]] }
+            });
+        });
+
         it('calls webview.setContent with HTML containing a table and script', () => {
             const webview = createMockWebView();
             provider.createView(webview, make2dTable());

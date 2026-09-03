@@ -116,6 +116,8 @@ export async function activate(context: ExtensionContext)
     const dataTableProvider = new DataTableProvider(server, clipboard);
     const resultsViewer = new ResultsViewer(context, server, clipboard, chartProvider, chartEditorProvider, dataTableProvider);
     context.subscriptions.push(
+        vscode.commands.registerCommand('msKustoExplorer.showRowDetails', () =>
+            vscode.commands.executeCommand('msKustoExplorer_rowDetails.focus')),
         vscode.commands.registerCommand('msKustoExplorer.copyChart', () => resultsViewer.copyChart()),
         vscode.commands.registerCommand('msKustoExplorer.toggleChartEditor', () => resultsViewer.toggleChartEditor()),
         vscode.commands.registerCommand('msKustoExplorer.saveSingletonResults', () => resultsViewer.saveCurrentResults()),

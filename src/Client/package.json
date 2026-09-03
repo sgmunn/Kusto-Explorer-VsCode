@@ -111,6 +111,11 @@
     ],
     "commands": [
       {
+        "command": "msKustoExplorer.showRowDetails",
+        "title": "Kusto Explorer: Show Row Details",
+        "icon": "$(list-selection)"
+      },
+      {
         "command": "msKustoExplorer.runQuery",
         "title": "Run Query",
         "icon": "$(play)"
@@ -696,6 +701,14 @@
       ]
     },
     "views": {
+      "secondarySideBar": [
+        {
+          "type": "webview",
+          "id": "msKustoExplorer_rowDetails",
+          "name": "Row Details",
+          "icon": "$(list-selection)"
+        }
+      ],
       "msKustoExplorer_resultsPanel": [
         {
           "type": "webview",
