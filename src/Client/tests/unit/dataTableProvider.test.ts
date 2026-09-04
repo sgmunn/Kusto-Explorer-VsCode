@@ -134,6 +134,14 @@ describe('SimpleDataTableProvider', () => {
             expect(html).toContain('<script>');
         });
 
+        it('offers up to 5000 rows per page', () => {
+            const webview = createMockWebView();
+            provider.createView(webview, make2dTable());
+
+            const html: string = webview.setContent.mock.calls[0]![0];
+            expect(html).toContain('perPageSelect: [50, 100, 500, 1000, 5000]');
+        });
+
         it('embeds column names in the content', () => {
             const webview = createMockWebView();
             provider.createView(webview, make2dTable());

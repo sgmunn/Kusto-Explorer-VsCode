@@ -659,7 +659,7 @@ class DataTableView implements IDataTableView {
         data: { headings: headings, data: rows },
         columns: columnSettings,
         perPage: 100,
-        perPageSelect: [50, 100, 500, 1000],
+        perPageSelect: [50, 100, 500, 1000, 5000],
         searchable: true,
         sortable: true,
         paging: tableData.rows.length > 100,
