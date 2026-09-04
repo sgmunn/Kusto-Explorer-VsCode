@@ -421,7 +421,11 @@ class DataTableView implements IDataTableView {
             background: var(--vscode-focusBorder, #007acc);
             color: #fff;
         }
-        table { border-collapse: collapse; width: fit-content !important; }
+        table.datatable-table {
+            border-collapse: collapse;
+            width: fit-content !important;
+            max-width: none !important;
+        }
         th, td {
             padding: 4px 8px;
             text-align: left;
@@ -685,20 +689,31 @@ class DataTableView implements IDataTableView {
     });
 
     // After every internal re-render the library rebuilds tbody (and may
-    // touch thead). Re-apply our column order so reorder survives sort,
-    // page, and search. Re-stamp first in case the library rebuilt the
-    // header cells — without data-col on each th, applyColOrder() and
-    // postColumnView() would see incomplete identity information.
-    function reapplyColOrder() {
+    // touch thead). Re-apply our column order and pinned widths so they
+    // survive page, search, and refresh operations. Re-stamp first in case
+    // the library rebuilt the header cells — without data-col on each th,
+    // applyColOrder() and width restoration would see incomplete identity.
+    var tableLayoutPinned = false;
+    function reapplyGridView() {
         try {
             stampOriginalColIndex();
             applyColOrder();
+            // Simple-DataTables may replace the header cells during a redraw.
+            // Their inline widths disappear even though our pinned flag still
+            // describes the old DOM. Re-run width restoration on the new
+            // header after the library has finished the current update.
+            if (tableLayoutPinned) {
+                tableLayoutPinned = false;
+                widthApplyAttempts = 0;
+                try { requestAnimationFrame(applySavedWidthsWhenLaidOut); }
+                catch (_) { setTimeout(applySavedWidthsWhenLaidOut, 0); }
+            }
         } catch (_) { /* table not initialized yet */ }
     }
-    grid.on('datatable.update', reapplyColOrder);
-    grid.on('datatable.page', reapplyColOrder);
-    grid.on('datatable.search', reapplyColOrder);
-    grid.on('datatable.refresh', reapplyColOrder);
+    grid.on('datatable.update', reapplyGridView);
+    grid.on('datatable.page', reapplyGridView);
+    grid.on('datatable.search', reapplyGridView);
+    grid.on('datatable.refresh', reapplyGridView);
 
     // ── Column-view state ───────────────────────────────────────────────
     // Stamp each data-column header with its ORIGINAL column index (the
@@ -719,10 +734,13 @@ class DataTableView implements IDataTableView {
     // after the grid has built its thead. Setting widths pins layout to
     // table-layout: fixed so the widths actually take effect for cells.
     // Reorder restore is handled by colOrder below.
+    var savedColumns = tableView && tableView.columns ? tableView.columns : [];
+    var savedGutterWidth = tableView && typeof tableView.gutterWidth === 'number'
+        ? tableView.gutterWidth
+        : undefined;
     function applyInitialView() {
         if (!tableView) return;
-        var savedColumns = tableView.columns || [];
-        var anyWidth = typeof tableView.gutterWidth === 'number' && tableView.gutterWidth >= 40;
+        var anyWidth = typeof savedGutterWidth === 'number' && savedGutterWidth >= 40;
         for (var p = 0; p < savedColumns.length; p++) {
             var pe = savedColumns[p];
             if (pe && typeof pe.width === 'number' && pe.width > 0) { anyWidth = true; break; }
@@ -778,8 +796,8 @@ class DataTableView implements IDataTableView {
             }
         }
         // 2) Overwrite the gutter and data columns with their saved widths.
-        if (typeof tableView.gutterWidth === 'number' && tableView.gutterWidth >= 40) {
-            ths[0].style.width = tableView.gutterWidth + 'px';
+        if (typeof savedGutterWidth === 'number' && savedGutterWidth >= 40) {
+            ths[0].style.width = savedGutterWidth + 'px';
         }
         var thsByCol = {};
         for (var m = 1; m < ths.length; m++) {
@@ -924,10 +942,14 @@ class DataTableView implements IDataTableView {
             cols.push(entry);
         }
         var gutterWidth = ths.length ? parseFloat(ths[0].style.width) : NaN;
+        savedColumns = cols;
+        savedGutterWidth = !isNaN(gutterWidth) && gutterWidth >= 40
+            ? Math.round(gutterWidth)
+            : undefined;
         window._vscodeApi.postMessage({
             command: 'setColumnView',
             columns: cols,
-            gutterWidth: !isNaN(gutterWidth) && gutterWidth >= 40 ? Math.round(gutterWidth) : undefined,
+            gutterWidth: savedGutterWidth,
             _token: token
         });
     }
@@ -977,7 +999,6 @@ class DataTableView implements IDataTableView {
     // Important: under table-layout: fixed the browser ignores
     // width: fit-content and falls back to filling the container, so we must
     // also pin the table's total width to the sum of column widths.
-    var tableLayoutPinned = false;
     function ensurePinned() {
         if (tableLayoutPinned) return;
         var ths = tableEl.querySelectorAll('thead th');

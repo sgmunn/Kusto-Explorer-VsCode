@@ -82,6 +82,7 @@ describe('SimpleDataTableProvider', () => {
             expect(headHtml).toContain('simple-datatables');
             expect(headHtml).toContain('<style>');
             expect(headHtml).toContain('.datatable-wrapper');
+            expect(headHtml).toContain('max-width: none !important');
             expect(scriptsHtml).toBe('');
         });
 
@@ -292,6 +293,15 @@ describe('SimpleDataTableProvider', () => {
             const html: string = webview.setContent.mock.calls[0]![0];
 
             expect(html).toContain('_dtCleanup');
+        });
+
+        it('restores pinned widths after a grid redraw', () => {
+            const webview = createMockWebView();
+            provider.createView(webview, make2dTable());
+            const html: string = webview.setContent.mock.calls[0]![0];
+
+            expect(html).toContain('function reapplyGridView()');
+            expect(html).toContain('requestAnimationFrame(applySavedWidthsWhenLaidOut)');
         });
     });
 
