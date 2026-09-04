@@ -706,6 +706,11 @@
         "when": "editorLangId == kusto && !msKustoExplorer.isEntityDefinition"
       },
       {
+        "command": "msKustoExplorer.runQuery",
+        "key": "shift+enter",
+        "when": "editorLangId == kusto && !msKustoExplorer.isEntityDefinition"
+      },
+      {
         "command": "editor.action.triggerSuggest",
         "key": "ctrl+space",
         "when": "editorLangId == kusto"
