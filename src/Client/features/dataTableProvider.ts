@@ -443,6 +443,12 @@ class DataTableView implements IDataTableView {
             width: fit-content !important;
             max-width: none !important;
         }
+        /* Once widths are pinned, the auto-layout safety cap must not
+           constrain drag resizing and desynchronize the handle. */
+        table.datatable-table.col-widths-pinned th,
+        table.datatable-table.col-widths-pinned td {
+            max-width: none;
+        }
         th, td {
             padding: 4px 8px;
             text-align: left;
@@ -815,6 +821,56 @@ class DataTableView implements IDataTableView {
     var widthApplyAttempts = 0;
     var widthApplyMaxAttempts = 60;     // ~1s at 60fps before handing off
     var widthApplyObserversArmed = false;
+    function cssPixels(value) {
+        var parsed = parseFloat(value);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+    function minimumHeaderWidth(th) {
+        // The row-number gutter has no label or controls.
+        if (!th.dataset || th.dataset.col === undefined) return 40;
+        var sorter = th.querySelector('.datatable-sorter') || th.querySelector('a');
+        if (!sorter) return 40;
+        var labelControlGap = 8;
+
+        // A Range measures the label's intrinsic width even when its element
+        // is already constrained. Absolutely positioned header controls do
+        // not contribute to scrollWidth, so account for their footprint too.
+        var labelWidth = 0;
+        try {
+            var range = document.createRange();
+            range.selectNodeContents(sorter);
+            labelWidth = range.getBoundingClientRect().width;
+        } catch (_) {
+            labelWidth = sorter.scrollWidth;
+        }
+        var thStyle = getComputedStyle(th);
+        var sorterStyle = getComputedStyle(sorter);
+        var rightReserve = cssPixels(thStyle.paddingRight);
+        var filterButton = th.querySelector('.workbench-filter-button');
+        if (filterButton) {
+            var filterStyle = getComputedStyle(filterButton);
+            rightReserve = Math.max(
+                rightReserve,
+                cssPixels(filterStyle.right) + filterButton.getBoundingClientRect().width
+            );
+        }
+        return Math.max(40, Math.ceil(
+            labelWidth + labelControlGap +
+            cssPixels(thStyle.paddingLeft) + rightReserve +
+            cssPixels(thStyle.borderLeftWidth) + cssPixels(thStyle.borderRightWidth) +
+            cssPixels(sorterStyle.paddingLeft) + cssPixels(sorterStyle.paddingRight)
+        ));
+    }
+    function measureHeaderWidths(ths) {
+        var widths = [];
+        // Read every width before writing any. A write in auto layout can
+        // immediately reflow every header that has not yet been measured.
+        for (var i = 0; i < ths.length; i++) {
+            var rect = ths[i].getBoundingClientRect();
+            widths.push(Math.max(rect.width || ths[i].offsetWidth, minimumHeaderWidth(ths[i])));
+        }
+        return widths;
+    }
     function applySavedWidthsWhenLaidOut() {
         if (tableLayoutPinned) return;
         var ths = tableEl.querySelectorAll('thead th');
@@ -833,10 +889,11 @@ class DataTableView implements IDataTableView {
             }
             return;
         }
-        // 1) Pin every column to its current natural width.
+        // 1) Snapshot every natural width, then pin them in a separate pass.
+        var naturalWidths = measureHeaderWidths(ths);
         for (var i = 0; i < ths.length; i++) {
             if (!ths[i].style.width) {
-                ths[i].style.width = ths[i].offsetWidth + 'px';
+                ths[i].style.width = naturalWidths[i] + 'px';
             }
         }
         // 2) Overwrite the gutter and data columns with their saved widths.
@@ -853,7 +910,7 @@ class DataTableView implements IDataTableView {
             var th = thsByCol[String(entry.index)];
             if (!th) continue;
             if (typeof entry.width === 'number' && entry.width > 0) {
-                th.style.width = entry.width + 'px';
+                th.style.width = Math.max(entry.width, minimumHeaderWidth(th)) + 'px';
             }
         }
         // 3) Total table width = sum of pinned column widths.
@@ -863,6 +920,7 @@ class DataTableView implements IDataTableView {
         }
         tableEl.style.setProperty('width', total + 'px', 'important');
         tableEl.style.tableLayout = 'fixed';
+        tableEl.classList.add('col-widths-pinned');
         tableLayoutPinned = true;
     }
 
@@ -1046,10 +1104,13 @@ class DataTableView implements IDataTableView {
     function ensurePinned() {
         if (tableLayoutPinned) return;
         var ths = tableEl.querySelectorAll('thead th');
+        var widths = measureHeaderWidths(ths);
         var total = 0;
+        // Keep measurement and mutation in separate passes so switching from
+        // auto layout cannot change the baseline beneath the resize handle.
         for (var i = 0; i < ths.length; i++) {
             var t = ths[i];
-            var w = t.offsetWidth;
+            var w = widths[i];
             if (!t.style.width) {
                 t.style.width = w + 'px';
             }
@@ -1060,6 +1121,7 @@ class DataTableView implements IDataTableView {
         // table-layout: fixed we must beat that !important with our own.
         tableEl.style.setProperty('width', total + 'px', 'important');
         tableEl.style.tableLayout = 'fixed';
+        tableEl.classList.add('col-widths-pinned');
         tableLayoutPinned = true;
     }
 
@@ -1078,7 +1140,13 @@ class DataTableView implements IDataTableView {
         if (!th) return;
         if (!nearRightEdge(th, e.clientX)) return;
         ensurePinned();
-        resizing = { th: th, startX: e.clientX, startWidth: th.offsetWidth };
+        resizing = {
+            th: th,
+            startX: e.clientX,
+            startWidth: th.getBoundingClientRect().width || th.offsetWidth,
+            startTableWidth: parseFloat(tableEl.style.width) || tableEl.offsetWidth,
+            minWidth: minimumHeaderWidth(th)
+        };
         suppressNextClick = true;
         document.body.classList.add('col-resizing');
         e.preventDefault();
@@ -1087,19 +1155,19 @@ class DataTableView implements IDataTableView {
 
     function onDocMouseMove(e) {
         if (!resizing) return;
-        var w = Math.max(40, resizing.startWidth + (e.clientX - resizing.startX));
-        var prev = parseFloat(resizing.th.style.width) || resizing.th.offsetWidth;
-        var delta = w - prev;
+        var w = Math.max(resizing.minWidth, resizing.startWidth + (e.clientX - resizing.startX));
         // Under table-layout: fixed, setting the width on the th sets the
-        // column width directly (both directions). Also update the table's
-        // total width by the same delta so growing one column expands the
-        // table (and triggers the container's horizontal scrollbar) rather
-        // than stealing space from neighbors.
+        // column width directly (both directions). Derive the table width from
+        // the fixed drag baseline so skipped mousemoves or layout constraints
+        // cannot accumulate drift between the pointer and the resize handle.
         resizing.th.style.width = w + 'px';
-        var tableW = parseFloat(tableEl.style.width) || tableEl.offsetWidth;
         // Must use setProperty with !important to beat the stylesheet's
         // width: fit-content !important rule.
-        tableEl.style.setProperty('width', (tableW + delta) + 'px', 'important');
+        tableEl.style.setProperty(
+            'width',
+            (resizing.startTableWidth + w - resizing.startWidth) + 'px',
+            'important'
+        );
     }
     function onDocMouseUp() {
         if (!resizing) return;

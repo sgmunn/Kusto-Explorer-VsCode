@@ -365,6 +365,34 @@ describe('SimpleDataTableProvider', () => {
             expect(html).toContain('function reapplyGridView()');
             expect(html).toContain('requestAnimationFrame(applySavedWidthsWhenLaidOut)');
         });
+
+        it('snapshots header widths before pinning and uses fixed drag baselines', () => {
+            const webview = createMockWebView();
+            provider.createView(webview, make2dTable());
+            const html: string = webview.setContent.mock.calls[0]![0];
+
+            expect(html).toContain('var widths = measureHeaderWidths(ths);');
+            expect(html.indexOf('var widths = measureHeaderWidths(ths);'))
+                .toBeLessThan(html.indexOf("t.style.width = w + 'px'"));
+            expect(html).toContain("tableEl.classList.add('col-widths-pinned')");
+            expect(html).toContain('startTableWidth: parseFloat(tableEl.style.width)');
+            expect(html).toContain('resizing.startTableWidth + w - resizing.startWidth');
+            expect(html).not.toContain('var delta = w - prev;');
+        });
+
+        it('keeps resized and restored columns wide enough for header controls', () => {
+            const webview = createMockWebView();
+            provider.createView(webview, make2dTable());
+            const html: string = webview.setContent.mock.calls[0]![0];
+
+            expect(html).toContain('function minimumHeaderWidth(th)');
+            expect(html).toContain("th.querySelector('.workbench-filter-button')");
+            expect(html).toContain('var labelControlGap = 8;');
+            expect(html).toContain('labelWidth + labelControlGap');
+            expect(html).toContain('Math.max(entry.width, minimumHeaderWidth(th))');
+            expect(html).toContain('minWidth: minimumHeaderWidth(th)');
+            expect(html).toContain('Math.max(resizing.minWidth');
+        });
     });
 
     // ─── invoke methods ─────────────────────────────────────────────────
