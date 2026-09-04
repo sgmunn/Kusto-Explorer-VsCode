@@ -1,8 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import { describe, expect, it } from 'vitest';
-import { formatExceptionCallstack, formatExceptionJson } from '../../features/rowDetailsView';
+import { describe, expect, it, vi } from 'vitest';
+import {
+    formatExceptionCallstack,
+    formatExceptionJson,
+    RowDetailsView,
+} from '../../features/rowDetailsView';
+import type { ResultRowSelection } from '../../features/dataTableProvider';
+import type { ResultTable } from '../../features/server';
 
 describe('exception details formatting', () => {
     it('separates compact frames, removes framework noise, and simplifies generated methods', () => {
@@ -51,5 +57,37 @@ describe('exception details formatting', () => {
         expect(formatExceptionCallstack(
             'at App.Exception..ctor() in Exception.cs:line 43 at App.Handler.<HandleAsync>d__3.MoveNext() in Handler.cs:line 132 at System.Threading.ExecutionContext.RunInternal()'
         )).toBe('at App.Exception..ctor() in Exception.cs:line 43 at App.Handler.HandleAsync() in Handler.cs:line 132');
+    });
+});
+
+describe('RowDetailsView selection rendering', () => {
+    it('does not rebuild the webview for an identical row selection', () => {
+        const htmlWrites: string[] = [];
+        const webview = {
+            options: {},
+            get html() { return htmlWrites.at(-1) ?? ''; },
+            set html(value: string) { htmlWrites.push(value); },
+            onDidReceiveMessage: vi.fn(() => ({ dispose: vi.fn() })),
+        };
+        const webviewView = {
+            webview,
+            onDidDispose: vi.fn(() => ({ dispose: vi.fn() })),
+        };
+        const details = new RowDetailsView();
+        const table: ResultTable = {
+            name: 'Results',
+            columns: [{ name: 'Value', type: 'string' }],
+            rows: [['one'], ['two']],
+        };
+        const first: ResultRowSelection = { table, rowIndexes: [0] };
+
+        details.resolveWebviewView(webviewView as never);
+        details.show(first);
+        const writesAfterFirstSelection = htmlWrites.length;
+        details.show({ table, rowIndexes: [0] });
+
+        expect(htmlWrites).toHaveLength(writesAfterFirstSelection);
+        details.show({ table, rowIndexes: [1] });
+        expect(htmlWrites).toHaveLength(writesAfterFirstSelection + 1);
     });
 });

@@ -1379,6 +1379,8 @@ class DataTableView implements IDataTableView {
     var scrollContainer = tableEl.closest('.datatable-container') || tableEl.parentElement;
     var lastDragX = 0, lastDragY = 0;
     var scrollRaf = 0;
+    var cellDragStart = null;
+    var dragSelectionChanged = false;
 
     function autoScrollTick() {
         scrollRaf = 0;
@@ -1411,6 +1413,7 @@ class DataTableView implements IDataTableView {
                 var lastAS = tbAS ? tbAS.rows.length - 1 : 0;
                 selectRect(0, selAnchor.c, lastAS, tColC);
                 applySelection();
+                dragSelectionChanged = true;
             }
         } else {
             var td = el && el.closest ? el.closest('tbody td') : null;
@@ -1424,6 +1427,7 @@ class DataTableView implements IDataTableView {
                         selectRect(selAnchor.r, selAnchor.c, pos.r, c);
                     }
                     applySelection();
+                    dragSelectionChanged = true;
                 }
             }
         }
@@ -1482,14 +1486,8 @@ class DataTableView implements IDataTableView {
         if (!td) return;
         var pos = getCellPos(td);
         if (!pos) return;
-        // The gutter retains data-orig-row after sort, filter, and paging.
-        // Tell the host about every cell click so the row inspector follows
-        // the user's scan even when the selection is only a single cell.
-        var rowGutter = td.parentNode && td.parentNode.cells ? td.parentNode.cells[0] : null;
-        var sourceRow = rowGutter ? Number(rowGutter.getAttribute('data-orig-row')) : NaN;
-        if (Number.isInteger(sourceRow) && sourceRow >= 0 && window._vscodeApi) {
-            window._vscodeApi.postMessage({ command: 'selectRow', rowIndex: sourceRow, _token: token });
-        }
+        cellDragStart = { x: e.clientX, y: e.clientY };
+        dragSelectionChanged = false;
         if (pos.c === 0) {
             if (e.shiftKey && selAnchor) {
                 // Shift+drag on the gutter extends the row range from the
@@ -1553,6 +1551,7 @@ class DataTableView implements IDataTableView {
                 selectedCells.clear();
                 selectRect(0, selAnchor.c, lastP, pendingColDrag.col);
                 applySelection();
+                dragSelectionChanged = true;
                 // Suppress the click that would otherwise trigger the
                 // library's column sort on mouseup.
                 suppressNextClick = true;
@@ -1563,6 +1562,12 @@ class DataTableView implements IDataTableView {
             }
         }
         if (!dragSelecting || !selAnchor) return;
+        if (!dragSelectionChanged && cellDragStart) {
+            var cellDdx = Math.abs(e.clientX - cellDragStart.x);
+            var cellDdy = Math.abs(e.clientY - cellDragStart.y);
+            if (cellDdx + cellDdy <= 4) return;
+            dragSelectionChanged = true;
+        }
         lastDragX = e.clientX;
         lastDragY = e.clientY;
         if (dragSelecting === 'col') {
@@ -1584,6 +1589,7 @@ class DataTableView implements IDataTableView {
                 var lastC = tbodyC ? tbodyC.rows.length - 1 : 0;
                 selectRect(0, selAnchor.c, lastC, targetColC);
                 applySelection();
+                dragSelectionChanged = true;
             }
             if (!scrollRaf) scrollRaf = requestAnimationFrame(autoScrollTick);
             return;
@@ -1601,6 +1607,7 @@ class DataTableView implements IDataTableView {
                     selectRect(selAnchor.r, selAnchor.c, pos.r, c);
                 }
                 applySelection();
+                dragSelectionChanged = true;
             }
         }
         // Kick off auto-scroll loop if cursor is near an edge of the
@@ -1609,11 +1616,13 @@ class DataTableView implements IDataTableView {
         if (!scrollRaf) scrollRaf = requestAnimationFrame(autoScrollTick);
     }
     function onCellDragEnd() {
-        var wasDragging = dragSelecting;
+        var selectionChangedByDrag = dragSelectionChanged;
         dragSelecting = false;
+        dragSelectionChanged = false;
+        cellDragStart = null;
         pendingColDrag = null;
         if (scrollRaf) { cancelAnimationFrame(scrollRaf); scrollRaf = 0; }
-        if (wasDragging) postSelectionChange();
+        if (selectionChangedByDrag) postSelectionChange();
     }
     document.addEventListener('mousemove', onCellDragMove);
     document.addEventListener('mouseup', onCellDragEnd);

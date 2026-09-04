@@ -109,6 +109,11 @@ export class RowDetailsView implements vscode.WebviewViewProvider {
     }
 
     show(selection: ResultRowSelection): void {
+        if (this.selection?.table === selection.table &&
+            this.selection.rowIndexes.length === selection.rowIndexes.length &&
+            this.selection.rowIndexes.every((row, index) => row === selection.rowIndexes[index])) {
+            return;
+        }
         this.selection = selection;
         this.render();
     }

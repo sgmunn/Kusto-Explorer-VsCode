@@ -162,6 +162,16 @@ describe('SimpleDataTableProvider', () => {
             });
         });
 
+        it('publishes row inspection from the stable click selection, not mousedown', () => {
+            const webview = createMockWebView();
+            provider.createView(webview, make2dTable());
+
+            const html: string = webview.setContent.mock.calls[0]![0];
+            expect(html).not.toContain("postMessage({ command: 'selectRow'");
+            expect(html).toContain('var dragSelectionChanged = false;');
+            expect(html).toContain('if (selectionChangedByDrag) postSelectionChange();');
+        });
+
         it('calls webview.setContent with HTML containing a table and script', () => {
             const webview = createMockWebView();
             provider.createView(webview, make2dTable());
