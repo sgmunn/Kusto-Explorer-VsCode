@@ -122,6 +122,7 @@ export async function activate(context: ExtensionContext)
         vscode.commands.registerCommand('msKustoExplorer.createQueryParameterProfile', () => queryParameterProfiles.createProfile()),
         vscode.commands.registerCommand('msKustoExplorer.editQueryParameterProfile', () => queryParameterProfiles.editActiveProfile()),
         vscode.commands.registerCommand('msKustoExplorer.openQueryParameterFile', () => queryParameterProfiles.openParameterFile()),
+        vscode.commands.registerCommand('msKustoExplorer.openQuerySpecificParameterFile', () => queryParameterProfiles.openQueryParameterFile()),
         vscode.commands.registerCommand('msKustoExplorer.showRowDetails', () =>
             vscode.commands.executeCommand('msKustoExplorer_rowDetails.focus')),
         vscode.commands.registerCommand('msKustoExplorer.copyChart', () => resultsViewer.copyChart()),

@@ -235,7 +235,7 @@ export class QueryEditor {
                     location: vscode.ProgressLocation.Window,
                     title: 'Running Kusto query...'
                 },
-                () => this.server.runQuery(queryText, connection?.cluster, connection?.database, true, undefined, clientRequestId, this.parameterProfiles.getActiveValues())
+                async () => this.server.runQuery(queryText, connection?.cluster, connection?.database, true, undefined, clientRequestId, await this.parameterProfiles.getActiveValues(editor.document.uri))
             );
             const executionDurationMs = Date.now() - startedAtMs;
 

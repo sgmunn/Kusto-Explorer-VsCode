@@ -91,6 +91,12 @@ The status-bar profile picker remains useful for switching active contexts
 quickly. Changes made through it should update the YAML file, while changes
 saved directly in YAML should take effect without restarting the extension.
 
+A saved `.kql` file can override the workspace profiles with an adjacent
+sidecar that has the same YAML format. For example, `investigate.kql` uses
+`investigate.parameters.yaml` when that file exists and otherwise falls back to
+`.kusto/parameters.yaml`. The **Open Query-Specific Parameters File** command
+creates the sidecar from the effective profiles and opens it for editing.
+
 ## Agent access to query results
 
 The VS Code agent should be able to receive existing query results as context,

@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import { describe, expect, it } from 'vitest';
-import { parseParameterFile, parseParameterValues, serializeParameterFile } from '../../features/queryParameterProfiles';
+import { getQueryParameterFilePath, parseParameterFile, parseParameterValues, serializeParameterFile } from '../../features/queryParameterProfiles';
 
 describe('query parameter profiles', () => {
     it('parses semicolon-separated parameter values', () => {
@@ -30,5 +30,11 @@ profiles:
             profiles: [{ name: 'Incident A', values: { raid: 'abc-123', environment: 'prod' } }],
         });
         expect(parseParameterFile(serializeParameterFile(profiles!))).toEqual(profiles);
+    });
+
+    it('maps a KQL file to an adjacent query-specific parameter file', () => {
+        expect(getQueryParameterFilePath('/queries/investigate.kql')).toBe('/queries/investigate.parameters.yaml');
+        expect(getQueryParameterFilePath('/queries/INVESTIGATE.KQL')).toBe('/queries/INVESTIGATE.parameters.yaml');
+        expect(getQueryParameterFilePath('/queries/investigate.csl')).toBeUndefined();
     });
 });

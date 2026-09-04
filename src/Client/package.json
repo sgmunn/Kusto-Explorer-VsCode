@@ -127,7 +127,12 @@
       },
       {
         "command": "msKustoExplorer.openQueryParameterFile",
-        "title": "Kusto Explorer: Open Query Parameters File",
+        "title": "Kusto Explorer: Open Workspace Query Parameters File",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "msKustoExplorer.openQuerySpecificParameterFile",
+        "title": "Kusto Explorer: Open Query-Specific Parameters File",
         "icon": "$(file-code)"
       },
       {
