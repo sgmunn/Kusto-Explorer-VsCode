@@ -11,7 +11,7 @@ import { QueryEditor } from './features/queryEditor'
 import { ResultsViewer } from './features/resultsViewer'
 import { CompositeChartProvider } from './features/compositeChartProvider'
 import { ChartEditorProvider } from './features/chartEditorProvider'
-import { DataTableProvider } from './features/dataTableProvider'
+import { WorkbenchDataTableProvider } from './features/workbenchGrid/workbenchDataTableProvider'
 import * as copilot from './features/copilot'
 import { ConnectionStatusBar } from './features/connectionStatusBar'
 import { QueryParameterProfiles } from './features/queryParameterProfiles'
@@ -114,7 +114,7 @@ export async function activate(context: ExtensionContext)
     // activate results viewer
     const chartProvider = new CompositeChartProvider();
     const chartEditorProvider = new ChartEditorProvider();
-    const dataTableProvider = new DataTableProvider(server, clipboard);
+    const dataTableProvider = new WorkbenchDataTableProvider(server, clipboard);
     const resultsViewer = new ResultsViewer(context, server, clipboard, chartProvider, chartEditorProvider, dataTableProvider);
     const queryParameterProfiles = new QueryParameterProfiles(context);
     context.subscriptions.push(
