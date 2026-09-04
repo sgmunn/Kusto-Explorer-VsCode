@@ -13,6 +13,7 @@
  */
 
 import type { IServer, ResultTable, ResultTableView } from './server';
+import { workspace } from 'vscode';
 import type { IWebView } from './webview';
 import type { IClipboard } from './clipboard';
 import { formatCfHtml } from './clipboard';
@@ -108,6 +109,7 @@ class DataTableView implements IDataTableView {
     private readonly token: string;
     private readonly subscription: { dispose(): void };
     private readonly table: ResultTable;
+    private readonly pageSize: number;
     /**
      * Original-data indices for the user's current selection. `rows` and
      * `cols` list specific indices into `this.table.rows` / `this.table.columns`.
@@ -138,6 +140,8 @@ class DataTableView implements IDataTableView {
         this.server = server;
         this.clipboard = clipboard;
         this.table = table;
+        const configuredPageSize = workspace.getConfiguration('msKustoExplorer.results').get<number>('pageSize', 1000);
+        this.pageSize = Number.isInteger(configuredPageSize) && configuredPageSize > 0 ? configuredPageSize : 1000;
         this.viewState = view;
         this.token = makeToken();
         webview.setup(DataTableView.buildHeadHtml() + (contribution?.headHtml ?? ''), '');
@@ -564,6 +568,7 @@ class DataTableView implements IDataTableView {
      */
     private buildInitScript(tableDataJson: string, viewJson: string): string {
         const token = this.token;
+        const perPageSelect = [...new Set([50, 100, 500, 1000, 5000, this.pageSize])].sort((a, b) => a - b);
         const beforeCreateScript = this.contribution?.beforeCreateScript ?? '';
         const afterCreateScript = this.contribution?.afterCreateScript ?? '';
         const yieldThreshold = this.contribution?.yieldBeforeCreateAtRowCount;
@@ -712,11 +717,11 @@ class DataTableView implements IDataTableView {
     var grid = new simpleDatatables.DataTable(tableEl, {
         data: { headings: headings, data: rows },
         columns: columnSettings,
-        perPage: 100,
-        perPageSelect: [50, 100, 500, 1000, 5000],
+        perPage: ${this.pageSize},
+        perPageSelect: ${JSON.stringify(perPageSelect)},
         searchable: true,
         sortable: true,
-        paging: tableData.rows.length > 100,
+        paging: tableData.rows.length > ${this.pageSize},
         labels: {
             placeholder: 'Search...',
             noRows: 'No results',

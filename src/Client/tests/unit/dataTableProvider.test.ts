@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { workspace } from 'vscode';
 import { DataTableProvider } from '../../features/dataTableProvider';
 import type { IDataTableView } from '../../features/dataTableProvider';
 import type { IWebView } from '../../features/webview';
@@ -68,6 +69,10 @@ describe('SimpleDataTableProvider', () => {
             copyText: vi.fn(),
         };
         provider = new DataTableProvider(new NullServer(), clipboard);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     // ─── createView ─────────────────────────────────────────────────────
@@ -197,12 +202,29 @@ describe('SimpleDataTableProvider', () => {
             expect(html).toContain('<script>');
         });
 
-        it('offers up to 5000 rows per page', () => {
+        it('displays 1000 rows per page by default', () => {
             const webview = createMockWebView();
             provider.createView(webview, make2dTable());
 
             const html: string = webview.setContent.mock.calls[0]![0];
-            expect(html).toContain('perPageSelect: [50, 100, 500, 1000, 5000]');
+            expect(html).toContain('perPage: 1000');
+            expect(html).toContain('perPageSelect: [50,100,500,1000,5000]');
+            expect(html).toContain('paging: tableData.rows.length > 1000');
+        });
+
+        it('uses the configured page size and offers it in the page-size selector', () => {
+            vi.spyOn(workspace, 'getConfiguration').mockReturnValue({
+                get: vi.fn().mockReturnValue(250),
+            } as never);
+            const configuredProvider = new DataTableProvider(new NullServer(), clipboard);
+            const webview = createMockWebView();
+
+            configuredProvider.createView(webview, make2dTable());
+
+            const html: string = webview.setContent.mock.calls[0]![0];
+            expect(html).toContain('perPage: 250');
+            expect(html).toContain('perPageSelect: [50,100,250,500,1000,5000]');
+            expect(html).toContain('paging: tableData.rows.length > 250');
         });
 
         it('embeds column names in the content', () => {

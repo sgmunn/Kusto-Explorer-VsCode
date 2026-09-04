@@ -1574,6 +1574,12 @@
       {
         "title": "Results",
         "properties": {
+          "msKustoExplorer.results.pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1000,
+            "description": "Number of query-result rows to display per grid page"
+          },
           "msKustoExplorer.results.display": {
             "type": "string",
             "enum": [
