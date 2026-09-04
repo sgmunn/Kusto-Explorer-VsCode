@@ -111,6 +111,21 @@ describe('SimpleDataTableProvider', () => {
             expect(content).toContain("typeof contributionCleanup === 'function'");
         });
 
+        it('resolves contribution factories for each new grid', () => {
+            let sequence = 0;
+            const contributedProvider = new DataTableProvider(new NullServer(), clipboard, () => ({
+                beforeCreateScript: `var contributionSequence = ${++sequence};`,
+            }));
+            const firstWebview = createMockWebView();
+            const secondWebview = createMockWebView();
+
+            contributedProvider.createView(firstWebview, make2dTable());
+            contributedProvider.createView(secondWebview, make2dTable());
+
+            expect(firstWebview.setContent.mock.calls[0]![0]).toContain('var contributionSequence = 1;');
+            expect(secondWebview.setContent.mock.calls[0]![0]).toContain('var contributionSequence = 2;');
+        });
+
         it('does not wait for visible layout below a contribution row threshold', () => {
             const contributedProvider = new DataTableProvider(new NullServer(), clipboard, {
                 yieldBeforeCreateAtRowCount: 1000,

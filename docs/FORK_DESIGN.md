@@ -184,6 +184,16 @@ with the partially initialized grid, and exposes `aria-busy` for assistive
 technology. It fades away as soon as grid construction completes. Smaller
 tables skip the overlay to avoid a distracting flash.
 
+### Severity row highlighting
+
+When a result table contains a column named `level` or `severity` (matched
+case-insensitively), the workbench grid highlights rows whose value is an
+integer from 1 through 5: critical, error, warning, normal, and verbose. The
+five translucent colors are configurable under **Kusto Explorer: Results**;
+an empty color leaves that level on the current theme's default row styling.
+The row metadata remains attached through sorting, filtering, and paging, and
+the stronger cell-selection color takes precedence during interaction.
+
 ## Guiding principles
 
 - Keep query source and returned data faithful; formatting is a client display

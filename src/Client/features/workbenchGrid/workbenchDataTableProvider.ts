@@ -13,14 +13,21 @@ import type { IServer, ResultTable, ResultTableView } from '../server';
 import type { IWebView } from '../webview';
 import { createColumnFilterContribution } from './columnFilters';
 import { createLoadingOverlayContribution } from './loadingOverlay';
+import { createSeverityHighlightingContribution } from './severityHighlighting';
 
 function createWorkbenchGridContribution(): IDataTableWebviewContribution {
     const columnFilters = createColumnFilterContribution();
     const loadingOverlay = createLoadingOverlayContribution();
+    const severityHighlighting = createSeverityHighlightingContribution();
     return {
-        headHtml: (columnFilters.headHtml ?? '') + (loadingOverlay.headHtml ?? ''),
+        headHtml:
+            (columnFilters.headHtml ?? '') +
+            (loadingOverlay.headHtml ?? '') +
+            (severityHighlighting.headHtml ?? ''),
         beforeCreateScript:
-            (columnFilters.beforeCreateScript ?? '') + (loadingOverlay.beforeCreateScript ?? ''),
+            (columnFilters.beforeCreateScript ?? '') +
+            (loadingOverlay.beforeCreateScript ?? '') +
+            (severityHighlighting.beforeCreateScript ?? ''),
         ...(loadingOverlay.yieldBeforeCreateAtRowCount !== undefined && {
             yieldBeforeCreateAtRowCount: loadingOverlay.yieldBeforeCreateAtRowCount,
         }),
@@ -41,7 +48,7 @@ export class WorkbenchDataTableProvider implements IDataTableProvider {
     private readonly implementation: IDataTableProvider;
 
     constructor(server: IServer, clipboard: IClipboard, implementation?: IDataTableProvider) {
-        this.implementation = implementation ?? new DataTableProvider(server, clipboard, createWorkbenchGridContribution());
+        this.implementation = implementation ?? new DataTableProvider(server, clipboard, createWorkbenchGridContribution);
     }
 
     createView(webview: IWebView, table: ResultTable, view?: ResultTableView): IDataTableView {

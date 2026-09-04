@@ -1556,6 +1556,31 @@
             ],
             "default": "main",
             "markdownDescription": "Where charts are displayed when results are in the bottom panel.\n- `beside`: In a singleton editor beside your query\n- `main`: In a singleton editor in the main area\n- `results`: Inline with results in the bottom panel\n\nWhen results display is `beside` or `main`, charts always appear as a tab in the same singleton view."
+          },
+          "msKustoExplorer.results.severityColors.critical": {
+            "type": "string",
+            "default": "#f14c4c40",
+            "description": "Row highlight color for level/severity 1 (critical). The final two hex digits control opacity. Leave empty to use the current theme default."
+          },
+          "msKustoExplorer.results.severityColors.error": {
+            "type": "string",
+            "default": "#f4877133",
+            "description": "Row highlight color for level/severity 2 (error). The final two hex digits control opacity. Leave empty to use the current theme default."
+          },
+          "msKustoExplorer.results.severityColors.warning": {
+            "type": "string",
+            "default": "#cca7002e",
+            "description": "Row highlight color for level/severity 3 (warning). The final two hex digits control opacity. Leave empty to use the current theme default."
+          },
+          "msKustoExplorer.results.severityColors.normal": {
+            "type": "string",
+            "default": "#89d1851f",
+            "description": "Row highlight color for level/severity 4 (normal). The final two hex digits control opacity. Leave empty to use the current theme default."
+          },
+          "msKustoExplorer.results.severityColors.verbose": {
+            "type": "string",
+            "default": "#75beff17",
+            "description": "Row highlight color for level/severity 5 (verbose). The final two hex digits control opacity. Leave empty to use the current theme default."
           }
         }
       },

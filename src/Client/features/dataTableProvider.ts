@@ -82,6 +82,8 @@ export interface IDataTableWebviewContribution {
     afterCreateScript?: string;
 }
 
+export type DataTableWebviewContributionFactory = () => IDataTableWebviewContribution;
+
 // ─── Implementation ─────────────────────────────────────────────────────────
 
 // Cell values are passed raw (unescaped) to the webview. In the init
@@ -1974,18 +1976,21 @@ export class DataTableProvider implements IDataTableProvider {
     constructor(
         server: IServer,
         clipboard: IClipboard,
-        private readonly contribution?: IDataTableWebviewContribution
+        private readonly contribution?: IDataTableWebviewContribution | DataTableWebviewContributionFactory
     ) {
         this.server = server;
         this.clipboard = clipboard;
     }
 
     createView(webview: IWebView, table: ResultTable, view?: ResultTableView): IDataTableView {
+        const contribution = typeof this.contribution === 'function'
+            ? this.contribution()
+            : this.contribution;
         return new DataTableView(webview, this.server, this.clipboard, table, view, (selection) => {
             for (const listener of this.rowSelectionListeners) {
                 try { listener(selection); } catch { /* listeners are best-effort */ }
             }
-        }, this.contribution);
+        }, contribution);
     }
 
     onDidSelectRow(listener: (selection: ResultRowSelection) => void): { dispose(): void } {
