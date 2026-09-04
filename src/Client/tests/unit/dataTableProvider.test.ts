@@ -91,6 +91,7 @@ describe('SimpleDataTableProvider', () => {
             const contributedProvider = new DataTableProvider(new NullServer(), clipboard, {
                 headHtml: '<style>.contributed { color: red; }</style>',
                 beforeCreateScript: 'var contributedBefore = true;',
+                yieldBeforeCreateAtRowCount: 1,
                 afterCreateScript: 'var contributedAfter = true;',
             });
             const webview = createMockWebView();
@@ -104,7 +105,22 @@ describe('SimpleDataTableProvider', () => {
                 .toBeLessThan(content.indexOf('new simpleDatatables.DataTable'));
             expect(content.indexOf('var contributedAfter = true;'))
                 .toBeGreaterThan(content.indexOf('new simpleDatatables.DataTable'));
+            expect(content).toContain('function waitForVisibleGrid()');
+            expect(content).toContain('container.getClientRects().length > 0');
+            expect(content).toContain('requestAnimationFrame(resolve)');
             expect(content).toContain("typeof contributionCleanup === 'function'");
+        });
+
+        it('does not wait for visible layout below a contribution row threshold', () => {
+            const contributedProvider = new DataTableProvider(new NullServer(), clipboard, {
+                yieldBeforeCreateAtRowCount: 1000,
+            });
+            const webview = createMockWebView();
+
+            contributedProvider.createView(webview, make2dTable());
+
+            const content: string = webview.setContent.mock.calls[0]![0];
+            expect(content).not.toContain('function waitForVisibleGrid()');
         });
 
         it('returns an IDataTableView', () => {

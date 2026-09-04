@@ -5,12 +5,29 @@ import { DataTableProvider } from '../dataTableProvider';
 import type {
     IDataTableProvider,
     IDataTableView,
+    IDataTableWebviewContribution,
     ResultRowSelection,
 } from '../dataTableProvider';
 import type { IClipboard } from '../clipboard';
 import type { IServer, ResultTable, ResultTableView } from '../server';
 import type { IWebView } from '../webview';
 import { createColumnFilterContribution } from './columnFilters';
+import { createLoadingOverlayContribution } from './loadingOverlay';
+
+function createWorkbenchGridContribution(): IDataTableWebviewContribution {
+    const columnFilters = createColumnFilterContribution();
+    const loadingOverlay = createLoadingOverlayContribution();
+    return {
+        headHtml: (columnFilters.headHtml ?? '') + (loadingOverlay.headHtml ?? ''),
+        beforeCreateScript:
+            (columnFilters.beforeCreateScript ?? '') + (loadingOverlay.beforeCreateScript ?? ''),
+        ...(loadingOverlay.yieldBeforeCreateAtRowCount !== undefined && {
+            yieldBeforeCreateAtRowCount: loadingOverlay.yieldBeforeCreateAtRowCount,
+        }),
+        afterCreateScript:
+            (columnFilters.afterCreateScript ?? '') + (loadingOverlay.afterCreateScript ?? ''),
+    };
+}
 
 /**
  * Fork-owned boundary for results-grid development.
@@ -24,7 +41,7 @@ export class WorkbenchDataTableProvider implements IDataTableProvider {
     private readonly implementation: IDataTableProvider;
 
     constructor(server: IServer, clipboard: IClipboard, implementation?: IDataTableProvider) {
-        this.implementation = implementation ?? new DataTableProvider(server, clipboard, createColumnFilterContribution());
+        this.implementation = implementation ?? new DataTableProvider(server, clipboard, createWorkbenchGridContribution());
     }
 
     createView(webview: IWebView, table: ResultTable, view?: ResultTableView): IDataTableView {

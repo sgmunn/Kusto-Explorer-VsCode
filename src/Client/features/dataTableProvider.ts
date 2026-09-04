@@ -76,6 +76,8 @@ export interface IDataTableWebviewContribution {
     headHtml?: string;
     /** JavaScript inserted after table data is prepared but before grid creation. */
     beforeCreateScript?: string;
+    /** Wait for visible layout and a paint before creating tables at or above this row count. */
+    yieldBeforeCreateAtRowCount?: number;
     /** JavaScript inserted immediately after the Simple-DataTables grid is created. */
     afterCreateScript?: string;
 }
@@ -556,13 +558,30 @@ class DataTableView implements IDataTableView {
         const token = this.token;
         const beforeCreateScript = this.contribution?.beforeCreateScript ?? '';
         const afterCreateScript = this.contribution?.afterCreateScript ?? '';
+        const yieldThreshold = this.contribution?.yieldBeforeCreateAtRowCount;
+        const beforeCreateYield = yieldThreshold !== undefined && this.table.rows.length >= yieldThreshold
+            ? `await new Promise(function(resolve) {
+        function waitForVisibleGrid() {
+            if (!container.isConnected) { resolve(); return; }
+            if (container.getClientRects().length > 0 &&
+                container.clientWidth > 0 && container.clientHeight > 0) {
+                // The current callback runs before paint. Resolve on the next
+                // frame so the loading treatment is visible before grid work.
+                requestAnimationFrame(resolve);
+                return;
+            }
+            requestAnimationFrame(waitForVisibleGrid);
+        }
+        requestAnimationFrame(waitForVisibleGrid);
+    });`
+            : '';
         return `<script>
 (function() {
     var container = document.currentScript.parentElement;
     var tableEl = container.querySelector('table');
     if (!tableEl) return;
 
-    function init() {
+    async function init() {
     // Clean up previous instance if re-rendered
     if (container._dtCleanup) container._dtCleanup();
 
@@ -679,6 +698,8 @@ class DataTableView implements IDataTableView {
     });
 
     ${beforeCreateScript}
+
+    ${beforeCreateYield}
 
     var grid = new simpleDatatables.DataTable(tableEl, {
         data: { headings: headings, data: rows },

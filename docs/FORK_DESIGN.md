@@ -175,6 +175,15 @@ not currently persisted in `.kqr` files. The implementation lives in
 `features/workbenchGrid`; the legacy grid exposes only a small optional webview
 contribution hook so upstream grid changes remain straightforward to merge.
 
+### Large-result loading feedback
+
+When a result table has at least 1,000 rows, the workbench grid paints a subtle
+blocking overlay before beginning Simple-DataTables initialization. The overlay
+shows a spinner and the number of rows being rendered, prevents interaction
+with the partially initialized grid, and exposes `aria-busy` for assistive
+technology. It fades away as soon as grid construction completes. Smaller
+tables skip the overlay to avoid a distracting flash.
+
 ## Guiding principles
 
 - Keep query source and returned data faithful; formatting is a client display
