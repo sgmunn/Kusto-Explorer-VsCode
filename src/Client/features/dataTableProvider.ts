@@ -400,6 +400,8 @@ class DataTableView implements IDataTableView {
             color: var(--vscode-input-foreground, var(--vscode-foreground));
             border: 1px solid var(--vscode-input-border, #555);
             border-radius: 2px;
+            width: min(400px, 60vw);
+            box-sizing: border-box;
             padding: 2px 6px;
             font-family: inherit;
             font-size: inherit;

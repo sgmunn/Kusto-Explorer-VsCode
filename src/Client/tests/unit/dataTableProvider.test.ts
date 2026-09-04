@@ -83,6 +83,7 @@ describe('SimpleDataTableProvider', () => {
             expect(headHtml).toContain('<style>');
             expect(headHtml).toContain('.datatable-wrapper');
             expect(headHtml).toContain('max-width: none !important');
+            expect(headHtml).toContain('width: min(400px, 60vw)');
             expect(scriptsHtml).toBe('');
         });
 
