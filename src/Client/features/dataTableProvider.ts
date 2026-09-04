@@ -70,6 +70,16 @@ export interface IDataTableProvider {
     onDidSelectRow(listener: (selection: ResultRowSelection) => void): { dispose(): void };
 }
 
+/** Fork-owned behavior that can be composed into the legacy grid webview. */
+export interface IDataTableWebviewContribution {
+    /** Styles or other markup appended to the grid page head. */
+    headHtml?: string;
+    /** JavaScript inserted after table data is prepared but before grid creation. */
+    beforeCreateScript?: string;
+    /** JavaScript inserted immediately after the Simple-DataTables grid is created. */
+    afterCreateScript?: string;
+}
+
 // ─── Implementation ─────────────────────────────────────────────────────────
 
 // Cell values are passed raw (unescaped) to the webview. In the init
@@ -117,7 +127,8 @@ class DataTableView implements IDataTableView {
         clipboard: IClipboard,
         table: ResultTable,
         view: ResultTableView | undefined,
-        private readonly onSelectRow: (selection: ResultRowSelection) => void
+        private readonly onSelectRow: (selection: ResultRowSelection) => void,
+        private readonly contribution?: IDataTableWebviewContribution
     ) {
         this.webview = webview;
         this.server = server;
@@ -125,7 +136,7 @@ class DataTableView implements IDataTableView {
         this.table = table;
         this.viewState = view;
         this.token = makeToken();
-        webview.setup(DataTableView.buildHeadHtml(), '');
+        webview.setup(DataTableView.buildHeadHtml() + (contribution?.headHtml ?? ''), '');
         this.subscription = webview.handle((msg) => {
             if (msg._token !== this.token) return;
             if (msg.command === 'copyText' && typeof msg.text === 'string') {
@@ -543,6 +554,8 @@ class DataTableView implements IDataTableView {
      */
     private buildInitScript(tableDataJson: string, viewJson: string): string {
         const token = this.token;
+        const beforeCreateScript = this.contribution?.beforeCreateScript ?? '';
+        const afterCreateScript = this.contribution?.afterCreateScript ?? '';
         return `<script>
 (function() {
     var container = document.currentScript.parentElement;
@@ -557,6 +570,7 @@ class DataTableView implements IDataTableView {
     var searchVisible = false;
     var cachedExpression = '';
     var cachedHtml = '';
+    var contributionCleanup = null;
     // Whole-table drag payload — used when the drag is initiated from the
     // corner box. Kept separate from cachedExpression so corner drags
     // always carry the full table even while a sub-range is selected.
@@ -664,6 +678,8 @@ class DataTableView implements IDataTableView {
         return cells;
     });
 
+    ${beforeCreateScript}
+
     var grid = new simpleDatatables.DataTable(tableEl, {
         data: { headings: headings, data: rows },
         columns: columnSettings,
@@ -678,6 +694,8 @@ class DataTableView implements IDataTableView {
             info: 'Showing {start} to {end} of {rows} rows'
         }
     });
+
+    ${afterCreateScript}
 
     // Clear the cell selection whenever the table is sorted. After a sort
     // the row order changes and the saved selection coordinates would
@@ -715,6 +733,7 @@ class DataTableView implements IDataTableView {
     grid.on('datatable.update', reapplyGridView);
     grid.on('datatable.page', reapplyGridView);
     grid.on('datatable.search', reapplyGridView);
+    grid.on('datatable.multisearch', reapplyGridView);
     grid.on('datatable.refresh', reapplyGridView);
 
     // ── Column-view state ───────────────────────────────────────────────
@@ -1893,6 +1912,7 @@ class DataTableView implements IDataTableView {
 
     // ── Cleanup for re-render ──
     container._dtCleanup = function() {
+        if (typeof contributionCleanup === 'function') contributionCleanup();
         window.removeEventListener('message', onMessage);
         document.removeEventListener('keydown', onKeyDown);
         document.removeEventListener('mousemove', onDocMouseMove);
@@ -1921,7 +1941,11 @@ export class DataTableProvider implements IDataTableProvider {
     private readonly clipboard: IClipboard;
     private readonly rowSelectionListeners = new Set<(selection: ResultRowSelection) => void>();
 
-    constructor(server: IServer, clipboard: IClipboard) {
+    constructor(
+        server: IServer,
+        clipboard: IClipboard,
+        private readonly contribution?: IDataTableWebviewContribution
+    ) {
         this.server = server;
         this.clipboard = clipboard;
     }
@@ -1931,7 +1955,7 @@ export class DataTableProvider implements IDataTableProvider {
             for (const listener of this.rowSelectionListeners) {
                 try { listener(selection); } catch { /* listeners are best-effort */ }
             }
-        });
+        }, this.contribution);
     }
 
     onDidSelectRow(listener: (selection: ResultRowSelection) => void): { dispose(): void } {

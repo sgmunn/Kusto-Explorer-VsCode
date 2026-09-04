@@ -87,6 +87,26 @@ describe('SimpleDataTableProvider', () => {
             expect(scriptsHtml).toBe('');
         });
 
+        it('places an optional webview contribution around grid creation', () => {
+            const contributedProvider = new DataTableProvider(new NullServer(), clipboard, {
+                headHtml: '<style>.contributed { color: red; }</style>',
+                beforeCreateScript: 'var contributedBefore = true;',
+                afterCreateScript: 'var contributedAfter = true;',
+            });
+            const webview = createMockWebView();
+
+            contributedProvider.createView(webview, make2dTable());
+
+            const headHtml: string = webview.setup.mock.calls[0]![0];
+            const content: string = webview.setContent.mock.calls[0]![0];
+            expect(headHtml).toContain('.contributed');
+            expect(content.indexOf('var contributedBefore = true;'))
+                .toBeLessThan(content.indexOf('new simpleDatatables.DataTable'));
+            expect(content.indexOf('var contributedAfter = true;'))
+                .toBeGreaterThan(content.indexOf('new simpleDatatables.DataTable'));
+            expect(content).toContain("typeof contributionCleanup === 'function'");
+        });
+
         it('returns an IDataTableView', () => {
             const webview = createMockWebView();
             const view = provider.createView(webview, make2dTable());

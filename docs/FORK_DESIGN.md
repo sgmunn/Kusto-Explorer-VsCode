@@ -158,6 +158,23 @@ search, selection, column resize/reorder, copy formats, Row Details events, and
 saved view state. New capabilities can then be added without changing
 `ResultsViewer` or introducing a separate `.kqr` rendering path.
 
+### Column filters
+
+The workbench grid adds an ADX-style funnel action to each data-column header.
+Filters are type aware: strings use text operators, numeric and timespan values
+use comparisons, datetimes use temporal comparisons, and booleans use true or
+false predicates. A column can have up to two conditions combined with AND or
+OR. Active funnels are highlighted, and the grid toolbar exposes a single
+**Clear all filters** action.
+
+Column filters combine with the existing global search and are evaluated over
+the complete result table already loaded into the webview, before pagination.
+They therefore do not fetch additional rows, rerun the query, or alter the KQL.
+Filter state is intentionally transient: it lasts for the open grid view but is
+not currently persisted in `.kqr` files. The implementation lives in
+`features/workbenchGrid`; the legacy grid exposes only a small optional webview
+contribution hook so upstream grid changes remain straightforward to merge.
+
 ## Guiding principles
 
 - Keep query source and returned data faithful; formatting is a client display

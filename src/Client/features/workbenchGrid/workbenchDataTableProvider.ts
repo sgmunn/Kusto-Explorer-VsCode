@@ -10,6 +10,7 @@ import type {
 import type { IClipboard } from '../clipboard';
 import type { IServer, ResultTable, ResultTableView } from '../server';
 import type { IWebView } from '../webview';
+import { createColumnFilterContribution } from './columnFilters';
 
 /**
  * Fork-owned boundary for results-grid development.
@@ -23,7 +24,7 @@ export class WorkbenchDataTableProvider implements IDataTableProvider {
     private readonly implementation: IDataTableProvider;
 
     constructor(server: IServer, clipboard: IClipboard, implementation?: IDataTableProvider) {
-        this.implementation = implementation ?? new DataTableProvider(server, clipboard);
+        this.implementation = implementation ?? new DataTableProvider(server, clipboard, createColumnFilterContribution());
     }
 
     createView(webview: IWebView, table: ResultTable, view?: ResultTableView): IDataTableView {
