@@ -4,7 +4,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type * as vscode from 'vscode';
 import { CompositeChartProvider } from '../../features/compositeChartProvider';
-import { WebViewAdapter } from '../../features/resultsViewer';
+import { DocumentViewProvider, WebViewAdapter } from '../../features/resultsViewer';
+import type { ResultTable } from '../../features/server';
 
 function createMockVsCodeWebview(): vscode.Webview {
     return {
@@ -45,5 +46,43 @@ describe('WebViewAdapter', () => {
 
         expect(adapter.headHtml).toBe('<meta name="same">');
         expect(adapter.scriptsHtml).toBe('<script>same();</script>');
+    });
+});
+
+describe('DocumentViewProvider HTML', () => {
+    const table: ResultTable = {
+        name: 'PrimaryResult',
+        columns: [{ name: 'Value', type: 'string' }],
+        rows: [['one']],
+    };
+
+    function buildHtml(hasChart: boolean): string {
+        const builder = Object.create(DocumentViewProvider.prototype) as DocumentViewProvider;
+        const tableWebView = { contentHtml: '<table data-test="result-grid"></table>' } as WebViewAdapter;
+        return builder.BuildMultiTabbedHtml(
+            hasChart,
+            'all',
+            undefined,
+            undefined,
+            undefined,
+            'print 1',
+            undefined,
+            undefined,
+            [table],
+            [tableWebView],
+        );
+    }
+
+    it('makes the first table visible before its inline grid script runs', () => {
+        const html = buildHtml(false);
+
+        expect(html).toContain('<div id="table-0" class="view-content active"');
+    });
+
+    it('keeps the table initially hidden when a chart is the first view', () => {
+        const html = buildHtml(true);
+
+        expect(html).toContain('<div id="table-0" class="view-content"');
+        expect(html).not.toContain('<div id="table-0" class="view-content active"');
     });
 });

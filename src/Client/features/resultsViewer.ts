@@ -1631,7 +1631,7 @@ function singletonTitleForMode(mode: ResultViewMode): string {
  * The file contains ResultData JSON (tables + chart options + query).
  * Can show chart, data tables and query in different tabs.
  */
-class DocumentViewProvider implements vscode.CustomTextEditorProvider {
+export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
     /**
      * Per-panel ref-count of in-flight self-applied edits to the backing
      * document. The `onDidChangeTextDocument` listener consults this map
@@ -1995,19 +1995,24 @@ class DocumentViewProvider implements vscode.CustomTextEditorProvider {
             (showQuery ? 1 : 0);
         const showTabs = visibleTabCount > 1;
 
+        // Determine first active view before emitting its content. A table's
+        // inline grid script may run immediately when the CDN dependency is
+        // already cached, so the initial table must be visible in the markup
+        // itself instead of waiting for the page-bottom activation script.
+        // Initializing Simple-DataTables inside display:none can collapse the
+        // leading row-number gutter in document-backed .kqr editors.
+        const firstActiveView = showChart ? 'chart' : 'table-0';
+
         // Build individual table divs with inline content from DataTableView
         const tableContents = showTables
             ? tables.map((_t, i) =>
-                `<div id="table-${i}" class="view-content" data-vscode-context='{"chartVisible": false, "queryVisible": false, "preventDefaultContextMenuItems": true}'>${tableWebViews?.[i]?.contentHtml ?? ''}</div>`
+                `<div id="table-${i}" class="view-content${firstActiveView === `table-${i}` ? ' active' : ''}" data-vscode-context='{"chartVisible": false, "queryVisible": false, "preventDefaultContextMenuItems": true}'>${tableWebViews?.[i]?.contentHtml ?? ''}</div>`
             ).join('')
             : '';
 
         // Get chart page dependencies from the webview adapter
         const chartHead = showChart ? (webview?.headHtml ?? '') : '';
         const chartScripts = showChart ? (webview?.scriptsHtml ?? '') : '';
-
-        // Determine first active view
-        const firstActiveView = showChart ? 'chart' : 'table-0';
 
         // Build the toggle buttons (only used when showTabs is true)
         let tabButtons = '';
