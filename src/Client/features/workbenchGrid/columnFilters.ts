@@ -237,24 +237,18 @@ const headHtml = `<style>
 export function createColumnFilterContribution(): IDataTableWebviewContribution {
     const matcherSource = matchesColumnFilter.toString();
     const operatorsSource = operatorsForKustoType.toString();
-    const marker = '__workbench_column_filter__:';
     return {
         headHtml,
         beforeCreateScript: `
     var workbenchColumnFilters = {};
-    var workbenchFilterMarker = '${marker}';
+    var workbenchFilterTerm = 'kefiltertoken9f4c2a7b';
     var workbenchMatchesColumnFilter = ${matcherSource};
     var workbenchOperatorsForKustoType = ${operatorsSource};
     columnSettings.slice(1).forEach(function(setting) {
-        setting.searchMethod = function(terms, cell) {
-            var encoded = (terms || []).find(function(term) {
-                return String(term).indexOf(workbenchFilterMarker) === 0;
-            });
-            if (encoded) {
-                try {
-                    var filter = JSON.parse(decodeURIComponent(String(encoded).slice(workbenchFilterMarker.length)));
-                    return workbenchMatchesColumnFilter(cell, filter);
-                } catch (_) { return true; }
+        setting.searchMethod = function(terms, cell, _row, columnIndex) {
+            if ((terms || []).indexOf(workbenchFilterTerm) >= 0) {
+                var filter = workbenchColumnFilters[columnIndex - 1];
+                return !!filter && workbenchMatchesColumnFilter(cell, filter);
             }
             var raw = cell && typeof cell === 'object' ? (cell.text ?? cell.data ?? '') : cell;
             var haystack = String(raw ?? '').toLocaleLowerCase();
@@ -325,7 +319,10 @@ export function createColumnFilterContribution(): IDataTableWebviewContribution 
         Object.keys(workbenchColumnFilters).forEach(function(key) {
             var filter = workbenchColumnFilters[key];
             queries.push({
-                terms: [workbenchFilterMarker + encodeURIComponent(JSON.stringify(filter))],
+                // The term merely activates this column's custom matcher.
+                // Filter state stays in memory so Simple-DataTables cannot
+                // corrupt it while normalizing search punctuation and case.
+                terms: [workbenchFilterTerm],
                 columns: [filter.columnIndex + 1]
             });
         });
