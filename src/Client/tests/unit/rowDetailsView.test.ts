@@ -6,6 +6,7 @@ import {
     formatExceptionCallstack,
     formatExceptionJson,
     RowDetailsView,
+    tryFormatJsonForDisplay,
 } from '../../features/rowDetailsView';
 import type { ResultRowSelection } from '../../features/dataTableProvider';
 import type { ResultTable } from '../../features/server';
@@ -36,6 +37,28 @@ describe('exception details formatting', () => {
         });
     });
 
+    it('formats serialized JSON and trims nested callstacks regardless of field type', () => {
+        expect(tryFormatJsonForDisplay(JSON.stringify({
+            message: 'failed',
+            innerException: {
+                CallStack: 'at App.Work() at System.Threading.Tasks.Task.Execute()',
+            },
+        }))).toBe([
+            '{',
+            '  "message": "failed",',
+            '  "innerException": {',
+            '    "CallStack": "at App.Work()"',
+            '  }',
+            '}',
+        ].join('\n'));
+    });
+
+    it('does not treat ordinary JSON scalar strings as structured fields', () => {
+        expect(tryFormatJsonForDisplay('123')).toBeUndefined();
+        expect(tryFormatJsonForDisplay('true')).toBeUndefined();
+        expect(tryFormatJsonForDisplay('"text"')).toBeUndefined();
+    });
+
     it('keeps source locations readable without the full build path', () => {
         expect(formatExceptionCallstack(
             'at Contoso.Work() in D:\\a\\_work\\1\\s\\Core\\Microsoft.Dms.Platform\\Utilities\\DmsPbiServiceExceptionUtilities.cs :line 114\\nat Contoso.Next()'
@@ -61,6 +84,31 @@ describe('exception details formatting', () => {
 });
 
 describe('RowDetailsView selection rendering', () => {
+    it('renders JSON from a string column as formatted code', () => {
+        const htmlWrites: string[] = [];
+        const webview = {
+            options: {},
+            get html() { return htmlWrites.at(-1) ?? ''; },
+            set html(value: string) { htmlWrites.push(value); },
+            onDidReceiveMessage: vi.fn(() => ({ dispose: vi.fn() })),
+        };
+        const details = new RowDetailsView();
+        details.resolveWebviewView({
+            webview,
+            onDidDispose: vi.fn(() => ({ dispose: vi.fn() })),
+        } as never);
+        details.show({
+            table: {
+                name: 'Results',
+                columns: [{ name: 'Payload', type: 'string' }],
+                rows: [['{"callStack":"at App.Work() at System.IO.File.ReadAllText()"}']],
+            },
+            rowIndexes: [0],
+        });
+
+        expect(webview.html).toContain('<pre>{\n  &quot;callStack&quot;: &quot;at App.Work()&quot;\n}</pre>');
+    });
+
     it('does not rebuild the webview for an identical row selection', () => {
         const htmlWrites: string[] = [];
         const webview = {

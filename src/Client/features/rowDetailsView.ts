@@ -89,6 +89,25 @@ export function formatExceptionJsonForDisplay(value: unknown): string {
     return JSON.stringify(formatExceptionJson(value), null, 2).replace(/\\n/g, '\n');
 }
 
+/** Returns formatted display text when a value is or contains structured JSON. */
+export function tryFormatJsonForDisplay(value: unknown): string | undefined {
+    let parsed = value;
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        // Treat serialized objects and arrays as JSON. JSON scalar strings such
+        // as "true" and "123" are common ordinary field values and gain
+        // nothing from being rendered in a code block.
+        if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return undefined;
+        try {
+            parsed = JSON.parse(trimmed);
+        } catch {
+            return undefined;
+        }
+    }
+    if (!parsed || typeof parsed !== 'object') return undefined;
+    return formatExceptionJsonForDisplay(parsed);
+}
+
 export class RowDetailsView implements vscode.WebviewViewProvider {
     private view: vscode.WebviewView | undefined;
     private selection: ResultRowSelection | undefined;
@@ -213,16 +232,15 @@ export class RowDetailsView implements vscode.WebviewViewProvider {
         const row = table.rows[rowIndex] ?? [];
         const fields = table.columns.map((column, index) => {
             const value = row[index];
-            return `<div class="field"><dt>${escapeHtml(column.name)}<span class="type">${escapeHtml(column.type)}</span></dt><dd>${this.formatValue(value, column.type)}</dd></div>`;
+            return `<div class="field"><dt>${escapeHtml(column.name)}<span class="type">${escapeHtml(column.type)}</span></dt><dd>${this.formatValue(value)}</dd></div>`;
         }).join('');
         return `${this.buildHeader(table.name, `Row ${rowIndex + 1} · ${table.columns.length} fields`)}<dl>${fields}</dl>`;
     }
 
-    private formatValue(value: unknown, type: string): string {
+    private formatValue(value: unknown): string {
         if (value === null || value === undefined) return '<span class="null">null</span>';
-        if (type === 'dynamic' && typeof value === 'object') {
-            return `<pre>${escapeHtml(formatExceptionJsonForDisplay(value))}</pre>`;
-        }
+        const formattedJson = tryFormatJsonForDisplay(value);
+        if (formattedJson !== undefined) return `<pre>${escapeHtml(formattedJson)}</pre>`;
         return escapeHtml(typeof value === 'string' ? value : String(value));
     }
 
@@ -252,11 +270,10 @@ export class RowDetailsView implements vscode.WebviewViewProvider {
     }
 
     private formatMergedValue(value: string): string {
-        try {
-            return `<pre>${escapeHtml(formatExceptionJsonForDisplay(JSON.parse(value)))}</pre>`;
-        } catch {
-            return escapeHtml(value);
-        }
+        const formattedJson = tryFormatJsonForDisplay(value);
+        return formattedJson === undefined
+            ? escapeHtml(value)
+            : `<pre>${escapeHtml(formattedJson)}</pre>`;
     }
 
     private buildHeader(tableName: string, details: string): string {
