@@ -734,13 +734,24 @@ class DataTableView implements IDataTableView {
     // Clear the cell selection whenever the table is sorted. After a sort
     // the row order changes and the saved selection coordinates would
     // highlight unrelated cells, so we drop the selection entirely.
-    grid.on('datatable.sort', function() {
+    function clearSelectionForSort() {
         if (selectedCells.size === 0 && !selAnchor) return;
         selectedCells.clear();
         selAnchor = null;
         applySelection();
         postSelectionChange();
-    });
+    }
+    grid.on('datatable.sort', clearSelectionForSort);
+
+    // Simple-DataTables cycles column headers through ascending/descending
+    // only. Treat the click after descending as a third, unsorted state:
+    // restore source-row order through the stable gutter column, then clear
+    // the library sort state so no header retains a sort indicator.
+    function restoreOriginalRowOrder() {
+        grid.columns.sort(0, 'asc');
+        grid.columns._state.sort = undefined;
+        grid.update();
+    }
 
     // After every internal re-render the library rebuilds tbody (and may
     // touch thead). Re-apply our column order and pinned widths so they
@@ -1205,6 +1216,24 @@ class DataTableView implements IDataTableView {
             if (sorter && sorter.blur) sorter.blur();
             if (document.activeElement && document.activeElement.blur && thClicked.contains(document.activeElement)) {
                 document.activeElement.blur();
+            }
+        }
+        // Header sorting has three states: ascending, descending, then
+        // normal (original source order). Let Simple-DataTables handle the
+        // first two states. Intercept only the third click so its normal
+        // two-state handler cannot wrap descending back to ascending.
+        var clickedSorter = e.target.closest ? e.target.closest('.datatable-sorter') : null;
+        if (thClicked && clickedSorter && !suppressNextClick && !e.shiftKey) {
+            var sortColumn = thClicked.dataset && thClicked.dataset.col !== undefined
+                ? parseInt(thClicked.dataset.col, 10) + 1
+                : 0;
+            var currentSort = grid.columns._state.sort;
+            if (!isNaN(sortColumn) && currentSort &&
+                currentSort.column === sortColumn && currentSort.dir === 'desc') {
+                e.preventDefault();
+                e.stopPropagation();
+                restoreOriginalRowOrder();
+                return;
             }
         }
         if (!suppressNextClick) return;

@@ -202,6 +202,16 @@ describe('SimpleDataTableProvider', () => {
             expect(html).toContain('<script>');
         });
 
+        it('cycles column sorting through ascending, descending, and original order', () => {
+            const webview = createMockWebView();
+            provider.createView(webview, make2dTable());
+
+            const html: string = webview.setContent.mock.calls[0]![0];
+            expect(html).toContain("currentSort.dir === 'desc'");
+            expect(html).toContain("grid.columns.sort(0, 'asc');");
+            expect(html).toContain('grid.columns._state.sort = undefined;');
+        });
+
         it('displays 1000 rows per page by default', () => {
             const webview = createMockWebView();
             provider.createView(webview, make2dTable());
