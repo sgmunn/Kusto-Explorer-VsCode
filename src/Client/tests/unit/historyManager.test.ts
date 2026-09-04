@@ -125,6 +125,24 @@ describe('HistoryManager', () => {
             expect(entries[1]!.queryPreview).toBe('first');
         });
 
+        it('gives concurrent identical runs distinct backing files', async () => {
+            const mgr = createManager();
+            const first = makeResultData('same query');
+            const second = makeResultData('same query');
+            first.clientRequestId = 'KustoExplorerVsCode;11111111-1111-1111-1111-111111111111';
+            second.clientRequestId = 'KustoExplorerVsCode;22222222-2222-2222-2222-222222222222';
+
+            const [firstUri, secondUri] = await Promise.all([
+                mgr.addHistoryEntry(first),
+                mgr.addHistoryEntry(second),
+            ]);
+
+            expect(firstUri.fsPath).not.toBe(secondUri.fsPath);
+            expect(fs.existsSync(firstUri.fsPath)).toBe(true);
+            expect(fs.existsSync(secondUri.fsPath)).toBe(true);
+            expect(mgr.getEntries()).toHaveLength(2);
+        });
+
         it('records row count', async () => {
             const mgr = createManager();
             await mgr.addHistoryEntry(makeResultData('query', 5));

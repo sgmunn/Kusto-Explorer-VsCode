@@ -10,7 +10,7 @@ Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases a
    - Add a cluster connection in the **Connections** sidebar (if it doesn't exist yet)
    - Select a database to set the active cluster and database for the focused document
 4. Write a Kusto query (or ask Copilot for help)
-5. Press **F5** to execute the query and view results in the Results panel
+5. Press **F5** to execute the query and view results in the configured Results destination
 6. Use the chart button to visualize your results — customize chart type, axes, legend, and more
 7. Revisit prior queries and results in the **History** sidebar
 
@@ -58,6 +58,8 @@ Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases a
 
 - Open saved `.kqr` files — chart, data, and query in a single view
 - Add or edit charts, copy data, and export images just like the Results panel
+- When results are configured for **Beside** or **Main**, each completed query opens in its own History-backed result tab by default
+- Concurrent queries therefore retain independent grid, chart, and persistence state; set **Results: Editor Mode** to `reuse` only when a single replaceable result tab is preferred
 
 ### Copilot Integration
 

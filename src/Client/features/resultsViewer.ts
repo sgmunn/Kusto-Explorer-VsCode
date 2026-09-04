@@ -623,6 +623,83 @@ export class ResultsViewer {
     }
 
     /**
+     * Displays a completed run from its durable History document.
+     *
+     * Editor destinations use one custom-editor tab per backing URI by
+     * default, which keeps concurrent runs isolated. The bottom panel remains
+     * an intentionally ephemeral latest-completion surface. Users can opt
+     * into the legacy singleton behavior with results.editorMode = reuse.
+     */
+    async displayRunResults(resultData: server.ResultData, backingUri: vscode.Uri): Promise<void> {
+        const resultsLocation = getResultsDisplayLocation();
+        const editorMode = getResultsEditorMode();
+
+        if (editorMode === 'newTab' && resultsLocation !== 'panel') {
+            this.disposeSingletonView();
+            await this.openResultDocument(backingUri, resultsLocation);
+            return;
+        }
+
+        if (editorMode === 'newTab' && resultsLocation === 'panel') {
+            const hasChart = !!getPrimaryChart(resultData);
+            const chartLocation = getChartDisplayLocation();
+            if (hasChart && chartLocation !== 'results') {
+                // The panel is still the ephemeral data destination. The
+                // document tab owns the complete run (data, chart, and query),
+                // giving its separately displayed chart run-scoped state.
+                await this.displayResultsInBottomPanel(resultData, 'data');
+                this.disposeSingletonView();
+                await this.openResultDocument(backingUri, chartLocation);
+                return;
+            }
+
+            // Panel-only presentation has no document write-back state to
+            // associate with the singleton compatibility surface.
+            await this.displayResults(resultData);
+            return;
+        }
+
+        this.setSingletonViewBackingUri(backingUri);
+        await this.displayResults(resultData);
+    }
+
+    /** Opens a History-backed result using the same ownership policy as a run. */
+    async displayHistoryResults(resultData: server.ResultData, backingUri: vscode.Uri): Promise<void> {
+        await this.displayRunResults(resultData, backingUri);
+    }
+
+    /**
+     * Opens a .kqr result as a document-owned custom editor.
+     * Each distinct URI receives independent grid, chart, and persistence state.
+     */
+    async openResultDocument(uri: vscode.Uri, location: 'beside' | 'main'): Promise<void> {
+        await vscode.commands.executeCommand(
+            'vscode.openWith',
+            uri,
+            resultViewerViewType,
+            getSingletonViewColumn(location)
+        );
+    }
+
+    /** Displays a query failure without disturbing another run-owned result tab. */
+    async displayRunError(error: server.QueryDiagnostic): Promise<void> {
+        const resultsLocation = getResultsDisplayLocation();
+        if (getResultsEditorMode() !== 'newTab' || resultsLocation === 'panel') {
+            await this.displayErrorInBottomView(error);
+            return;
+        }
+
+        this.disposeSingletonView();
+        const webview = vscode.window.createWebviewPanel(
+            'msKustoExplorer_queryError',
+            'Query Error',
+            { viewColumn: getSingletonViewColumn(resultsLocation), preserveFocus: resultsLocation === 'beside' },
+            { enableScripts: false, retainContextWhenHidden: true }
+        );
+        webview.webview.html = `<html><body><table><tr><td>\u274C</td><td><pre>${escapeHtml(error.message)}</pre></td></tr><tr><td></td><td><pre>${escapeHtml(error.details || '')}</pre></td></tr></table></body></html>`;
+    }
+
+    /**
      * Registers a result webview for copy command targeting.
      * Tracks focus and removes on dispose.
      */
@@ -1511,6 +1588,11 @@ function getResultsDisplayLocation(): 'panel' | 'beside' | 'main' {
     if (value === 'beside') return 'beside';
     if (value === 'main') return 'main';
     return 'panel';
+}
+
+function getResultsEditorMode(): 'newTab' | 'reuse' {
+    const value = vscode.workspace.getConfiguration('msKustoExplorer.results').get<string>('editorMode', 'newTab');
+    return value === 'reuse' ? 'reuse' : 'newTab';
 }
 
 /**

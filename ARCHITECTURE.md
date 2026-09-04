@@ -307,8 +307,24 @@ sequenceDiagram
     CM-->>QM: ExecuteResult (tables, charts, diagnostics)
     QM-->>LS: RunResult
     LS-->>S: RunQueryResult (ResultData + charts)
-    S-->>UI: typed result → ResultsViewer
+    S-->>UI: typed result + client request id
+    UI->>UI: persist unique History .kqr
+    UI->>UI: open run-owned result document
 ```
+
+#### Concurrent query and result ownership
+
+Query execution is intentionally concurrent: each invocation has its own client request ID and
+server request. Result presentation follows the same ownership boundary. Every successful run is
+first written to a uniquely named History `.kqr`; editor-hosted results then open that URI as a
+custom-editor document. The document URI owns its webview, grids, charts, and write-back queue, so
+overlapping completions cannot redirect one run's presentation changes into another run's file.
+
+The bottom Results panel is deliberately different: it is an ephemeral latest-completion surface.
+When `msKustoExplorer.results.editorMode` is `reuse`, editor results also use the legacy singleton
+surface and therefore replace one another. The default `newTab` mode should be used whenever runs
+may overlap. Query errors follow the destination policy: editor destinations receive an independent
+error tab, while panel errors replace the panel contents.
 
 **Auth fallback (design intent):** `KustoConnection` first tries the cluster's native auth. On a
 `KustoClientAuthenticationException` it marks the cluster as needing fallback and retries once using a

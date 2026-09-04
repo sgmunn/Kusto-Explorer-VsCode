@@ -64,7 +64,7 @@ export class HistoryPanel {
         this.treeView.reveal(item, { select: true, focus: false }).then(undefined, (err) => console.warn('Failed to reveal history item:', err));
     }
 
-    /** Opens a history item in the singleton results view. */
+    /** Opens a history item using the configured result ownership policy. */
     async openHistoryItem(item: { meta: HistoryEntry }): Promise<void> {
         const uri = this.manager.getHistoryFileUri(item.meta.fileName);
         const resultData = await this.manager.readHistoryFile(uri);
@@ -73,9 +73,7 @@ export class HistoryPanel {
             return;
         }
 
-        // Import dynamically to avoid circular dependency at module level
-        this.resultsViewer.setSingletonViewBackingUri(uri);
-        await this.resultsViewer.displayResults(resultData);
+        await this.resultsViewer.displayHistoryResults(resultData, uri);
     }
 
     /** Deletes a history item after confirmation. */

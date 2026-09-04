@@ -1545,7 +1545,16 @@
               "main"
             ],
             "default": "panel",
-            "markdownDescription": "Where query results are displayed.\n- `panel`: In the Results tab of the bottom panel\n- `beside`: In a singleton editor beside your query\n- `main`: In a singleton editor in the main area"
+            "markdownDescription": "Where query results are displayed.\n- `panel`: In the ephemeral Results tab of the bottom panel\n- `beside`: In an editor beside your query\n- `main`: In an editor in the main area\n\nWith **Editor Mode** set to `newTab`, each completed run in `beside` or `main` owns a separate History-backed result tab."
+          },
+          "msKustoExplorer.results.editorMode": {
+            "type": "string",
+            "enum": [
+              "newTab",
+              "reuse"
+            ],
+            "default": "newTab",
+            "markdownDescription": "How editor-hosted query results are owned.\n- `newTab`: Open each completed run in its own History-backed `.kqr` document tab. This is safe for concurrent runs.\n- `reuse`: Reuse the legacy singleton result editor. Concurrent completions replace the shared view.\n\nThis setting applies to `beside` and `main` result destinations and to charts displayed outside the bottom panel."
           },
           "msKustoExplorer.results.chartDisplay": {
             "type": "string",
@@ -1555,7 +1564,7 @@
               "results"
             ],
             "default": "main",
-            "markdownDescription": "Where charts are displayed when results are in the bottom panel.\n- `beside`: In a singleton editor beside your query\n- `main`: In a singleton editor in the main area\n- `results`: Inline with results in the bottom panel\n\nWhen results display is `beside` or `main`, charts always appear as a tab in the same singleton view."
+            "markdownDescription": "Where charts are displayed when results are in the bottom panel.\n- `beside`: In an editor beside your query\n- `main`: In an editor in the main area\n- `results`: Inline with results in the bottom panel\n\nWith **Editor Mode** set to `newTab`, an external chart opens in the run's complete History-backed result document. When results display is `beside` or `main`, charts appear as a tab in that run's result view."
           },
           "msKustoExplorer.results.severityColors.critical": {
             "type": "string",

@@ -8,6 +8,37 @@ import type { IServer, RunQueryResult, Range as ServerRange } from '../../featur
 import type { ResultsViewer } from '../../features/resultsViewer';
 import type { HistoryManager } from '../../features/historyManager';
 
+async function waitForResultTab(uri: vscode.Uri, timeoutMs = 5000): Promise<vscode.Tab> {
+    const expected = uri.fsPath.toLowerCase();
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+        for (const group of vscode.window.tabGroups.all) {
+            for (const tab of group.tabs) {
+                const input = tab.input;
+                if (input && typeof input === 'object' && 'uri' in input) {
+                    const actual = (input as { uri: vscode.Uri }).uri.fsPath.toLowerCase();
+                    if (actual === expected) {
+                        return tab;
+                    }
+                }
+            }
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    throw new Error(`Timed out waiting for result tab ${uri.fsPath}`);
+}
+
+async function waitUntil(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+        if (predicate()) {
+            return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    throw new Error('Timed out waiting for condition');
+}
+
 /** Get the extension's exported components. */
 async function getExports(): Promise<{
     server: IServer;
@@ -123,11 +154,14 @@ suite('Query Editor Integration Tests', () => {
             'A history entry should be added after running a query'
         );
 
-        // Verify results were displayed in singleton view (chart mode requires a chart descriptor)
-        assert.strictEqual(
-            resultsViewer.hasSingletonView(), true,
-            'Singleton view should open after running query'
-        );
+        // The default panel destination keeps data in the panel. Because the
+        // result has an externally displayed chart, the complete run opens in
+        // its own History-backed document rather than the shared singleton.
+        const newestEntry = historyManager.getEntries()[0]!;
+        const resultUri = historyManager.getHistoryFileUri(newestEntry.fileName);
+        const resultTab = await waitForResultTab(resultUri);
+        assert.ok(resultTab, 'Run-owned History result tab should open');
+        assert.strictEqual(resultsViewer.hasSingletonView(), false, 'Shared singleton should not own the run');
     });
 
     test('runQuery does nothing for non-kusto documents', async () => {
@@ -184,6 +218,64 @@ suite('Query Editor Integration Tests', () => {
             historyCountAfter, historyCountBefore + 1,
             'History entry should be added even with explicit range'
         );
+    });
+
+    test('overlapping runs open distinct History-backed result tabs', async () => {
+        const doc = await vscode.workspace.openTextDocument({
+            language: 'kusto',
+            content: 'StormEvents | take 1'
+        });
+        await vscode.window.showTextDocument(doc);
+
+        const originalRunQuery = server.runQuery.bind(server);
+        const resultsConfig = vscode.workspace.getConfiguration('msKustoExplorer.results');
+        const originalDisplay = resultsConfig.inspect<string>('display')?.globalValue;
+        const originalEditorMode = resultsConfig.inspect<string>('editorMode')?.globalValue;
+        const pending: Array<(value: RunQueryResult) => void> = [];
+        const historyCountBefore = historyManager.getEntries().length;
+
+        const makeRunResult = (label: string): RunQueryResult => ({
+            data: {
+                query: label,
+                tables: [{
+                    name: 'PrimaryResult',
+                    columns: [{ name: 'Run', type: 'string' }],
+                    rows: [[label]]
+                }]
+            }
+        });
+
+        (server as any).runQuery = async () => new Promise<RunQueryResult>(resolve => pending.push(resolve));
+
+        try {
+            await resultsConfig.update('display', 'beside', vscode.ConfigurationTarget.Global);
+            await resultsConfig.update('editorMode', 'newTab', vscode.ConfigurationTarget.Global);
+
+            const firstRun = vscode.commands.executeCommand('msKustoExplorer.runQuery', 0, 0, 0, 20);
+            await waitUntil(() => pending.length === 1);
+            const secondRun = vscode.commands.executeCommand('msKustoExplorer.runQuery', 0, 0, 0, 20);
+            await waitUntil(() => pending.length === 2);
+
+            // Complete in reverse start order to exercise overlapping result
+            // routing rather than a sequential happy path.
+            pending[1]!(makeRunResult('second run'));
+            pending[0]!(makeRunResult('first run'));
+            await Promise.all([firstRun, secondRun]);
+
+            const newEntries = historyManager.getEntries().slice(0, 2);
+            assert.strictEqual(historyManager.getEntries().length, historyCountBefore + 2);
+            assert.strictEqual(newEntries.length, 2);
+            assert.notStrictEqual(newEntries[0]!.fileName, newEntries[1]!.fileName);
+
+            const firstTab = await waitForResultTab(historyManager.getHistoryFileUri(newEntries[0]!.fileName));
+            const secondTab = await waitForResultTab(historyManager.getHistoryFileUri(newEntries[1]!.fileName));
+            assert.notStrictEqual(firstTab, secondTab, 'Each concurrent run should own a different tab');
+            assert.strictEqual(resultsViewer.hasSingletonView(), false, 'Concurrent runs should not share the singleton');
+        } finally {
+            (server as any).runQuery = originalRunQuery;
+            await resultsConfig.update('display', originalDisplay, vscode.ConfigurationTarget.Global);
+            await resultsConfig.update('editorMode', originalEditorMode, vscode.ConfigurationTarget.Global);
+        }
     });
 
     test('formatQuery applies formatting edits from a range formatting provider', async () => {

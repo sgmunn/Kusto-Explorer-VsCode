@@ -8,7 +8,7 @@ Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases a
 ## Features
 
 - **Query editor** — IntelliSense, formatting, go-to-definition, find references, code actions and quick fixes
-- **Results panel** — browse tabular results, copy cells, drag-and-drop as `datatable` expressions
+- **Results views** — use an ephemeral bottom panel or independent History-backed tabs that remain safe when queries run concurrently
 - **Charts** — create and customize charts from query results; copy as image or save as `.kqr` files
 - **Database explorer** — browse clusters, databases, tables, functions and more
 - **Copilot integration** — ask Copilot to help create, run and diagnose your queries
@@ -37,7 +37,7 @@ For a full walkthrough of the extension's features, see the [User Guide](src/Cli
    - Add a cluster connection in the **Connections** sidebar (if it doesn't exist yet)
    - Select a database to set the active cluster and database for the focused document
 4. Write a Kusto query (or ask Copilot for help)
-5. Press **F5** to execute the query and view results in the Results panel
+5. Press **F5** to execute the query and view results in the configured Results destination
 6. Use the chart button to visualize your results — customize chart type, axes, legend, and more
 7. Revisit prior queries and results in the **History** sidebar
 
@@ -72,4 +72,3 @@ Any use of third-party trademarks or logos are subject to those third-party's po
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-

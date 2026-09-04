@@ -255,7 +255,7 @@ export class QueryEditor {
             if (runResult && runResult.error)
             {
                 // display error and highlight error range
-                await this.resultsViewer.displayErrorInBottomView(runResult.error);
+                await this.resultsViewer.displayRunError(runResult.error);
 
                 if (runResult.error.range) {
                     const r = runResult.error.range;
@@ -269,12 +269,12 @@ export class QueryEditor {
                 runResult.data.executionDurationMs = executionDurationMs;
                 runResult.data.clientRequestId = clientRequestId;
 
-                // Add to history and use the history file as backing for the singleton view
+                // Add to history. The history document is also the immutable
+                // ownership boundary for this run's result view.
                 const historyUri = await this.history.addHistoryEntry(runResult.data);
-                this.resultsViewer.setSingletonViewBackingUri(historyUri);
 
-                // Display result tables and chart from ResultData
-                await this.resultsViewer.displayResults(runResult.data);
+                // Display this run from its own durable backing document.
+                await this.resultsViewer.displayRunResults(runResult.data, historyUri);
             }
 
             // Refresh CodeLens to show/hide Results lens
@@ -432,7 +432,8 @@ export class QueryEditor {
 
             const data = await this.history.getEntryData(entry);
             if (data) {
-                await this.resultsViewer.displayResults(data);
+                const historyUri = this.history.getHistoryFileUri(entry.fileName);
+                await this.resultsViewer.displayHistoryResults(data, historyUri);
                 this.historyPanel.revealEntry(entry);
             } else {
                 await this.resultsViewer.displayErrorInBottomView({

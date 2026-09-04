@@ -8,6 +8,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { randomUUID } from 'crypto';
 import * as server from './server';
 
 // =============================================================================
@@ -222,7 +223,7 @@ export class HistoryManager {
     async addHistoryEntry(resultData: server.ResultData): Promise<vscode.Uri> {
         const now = new Date();
         const timestamp = now.toISOString();
-        const datePart = timestamp.replace(/[-:]/g, '').replace('T', '_').replace(/\.\d+Z$/, '');
+        const datePart = timestamp.replace(/[-:]/g, '').replace('T', '_').replace('.', '_').replace(/Z$/, '');
 
         // Fetch the server-minified (comment-stripped) query once so we can
         // use it both to derive a meaningful display label and to compute the
@@ -237,7 +238,14 @@ export class HistoryManager {
         const querySnippet = computeHistoryDisplayLabel(resultData.query, minifiedQuery);
         // Sanitize for use as a filename
         const safeName = querySnippet.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').slice(0, 40);
-        const fileName = `${datePart}_${safeName}.kqr`;
+        // A second-level timestamp and query label are not unique when identical
+        // queries complete concurrently. Use the request id when available so
+        // every run owns a distinct backing document; direct HistoryManager
+        // callers receive an equally unique generated discriminator.
+        const runDiscriminator = (resultData.clientRequestId?.split(';').pop() ?? randomUUID())
+            .replace(/[^a-zA-Z0-9_-]/g, '_')
+            .slice(0, 36);
+        const fileName = `${datePart}_${runDiscriminator}_${safeName}.kqr`;
 
         const filePath = path.join(this.historyDir, fileName);
         const content = JSON.stringify(resultData, null, 2);
