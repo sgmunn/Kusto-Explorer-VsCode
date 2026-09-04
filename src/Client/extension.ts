@@ -14,6 +14,7 @@ import { ChartEditorProvider } from './features/chartEditorProvider'
 import { DataTableProvider } from './features/dataTableProvider'
 import * as copilot from './features/copilot'
 import { ConnectionStatusBar } from './features/connectionStatusBar'
+import { QueryParameterProfiles } from './features/queryParameterProfiles'
 import * as dotnet from './features/dotnet'
 import { Clipboard } from './features/clipboard'
 import { ScratchPadManager, SCRATCH_PAD_SCHEME } from './features/scratchPadManager'
@@ -115,7 +116,12 @@ export async function activate(context: ExtensionContext)
     const chartEditorProvider = new ChartEditorProvider();
     const dataTableProvider = new DataTableProvider(server, clipboard);
     const resultsViewer = new ResultsViewer(context, server, clipboard, chartProvider, chartEditorProvider, dataTableProvider);
+    const queryParameterProfiles = new QueryParameterProfiles(context);
     context.subscriptions.push(
+        vscode.commands.registerCommand('msKustoExplorer.selectQueryParameterProfile', () => queryParameterProfiles.selectProfile()),
+        vscode.commands.registerCommand('msKustoExplorer.createQueryParameterProfile', () => queryParameterProfiles.createProfile()),
+        vscode.commands.registerCommand('msKustoExplorer.editQueryParameterProfile', () => queryParameterProfiles.editActiveProfile()),
+        vscode.commands.registerCommand('msKustoExplorer.openQueryParameterFile', () => queryParameterProfiles.openParameterFile()),
         vscode.commands.registerCommand('msKustoExplorer.showRowDetails', () =>
             vscode.commands.executeCommand('msKustoExplorer_rowDetails.focus')),
         vscode.commands.registerCommand('msKustoExplorer.copyChart', () => resultsViewer.copyChart()),
@@ -214,7 +220,7 @@ export async function activate(context: ExtensionContext)
         vscode.commands.registerCommand('msKustoExplorer.deleteHistoryItem', (item) => historyPanel.deleteHistoryItem(item)),
         vscode.commands.registerCommand('msKustoExplorer.clearHistory', () => historyPanel.clearHistory()),
     );
-    const queryEditor = new QueryEditor(context, server, clipboard, historyManager, connectionManager, resultsViewer, historyPanel);
+    const queryEditor = new QueryEditor(context, server, clipboard, historyManager, connectionManager, resultsViewer, historyPanel, queryParameterProfiles);
     context.subscriptions.push(
         vscode.commands.registerCommand('msKustoExplorer.noop', () => {}),
         vscode.commands.registerCommand('msKustoExplorer.runQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.runQuery(startLine, startChar, endLine, endChar)),

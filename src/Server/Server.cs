@@ -2059,7 +2059,7 @@ public class Server : LspServer, ILogger, ISettingSource, IStorage, IAuthenticat
         try
         {
             var queryOptions = BuildQueryOptions(@params.IsReadOnly, @params.MaxRows);
-            var queryParameters = ImmutableDictionary<string, string>.Empty;
+            var queryParameters = @params.Parameters?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty;
 
             var runResult = await _queryManager.RunQueryAsync(
                 @params.Query,
@@ -2131,6 +2131,9 @@ public class Server : LspServer, ILogger, ISettingSource, IStorage, IAuthenticat
 
         [DataMember(Name = "clientRequestId")]
         public string? ClientRequestId { get; init; }
+
+        [DataMember(Name = "parameters")]
+        public Dictionary<string, string>? Parameters { get; init; }
     }
 
     [DataContract]

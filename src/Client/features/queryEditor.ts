@@ -15,6 +15,7 @@ import type { HistoryEntry } from './historyManager';
 import type { HistoryPanel } from './historyPanel';
 import { formatCfHtml, type ClipboardItem, type IClipboard } from './clipboard';
 import { ENTITY_DEFINITION_SCHEME } from './entityDefinitionProvider';
+import type { QueryParameterProfiles } from './queryParameterProfiles';
 
 const PASTE_KIND = vscode.DocumentDropOrPasteEditKind.Text.append('kusto');
 const QUERY_RUNNING_CONTEXT_KEY = 'msKustoExplorer.queryRunning';
@@ -110,6 +111,7 @@ export class QueryEditor {
     private readonly connections: ConnectionManager;
     private readonly resultsViewer: ResultsViewer;
     private readonly historyPanel: HistoryPanel;
+    private readonly parameterProfiles: QueryParameterProfiles;
     private readonly errorRangeDecoration: vscode.TextEditorDecorationType;
     private readonly queryRunningStatusBarItem: vscode.StatusBarItem;
     private runningQueryCount = 0;
@@ -126,7 +128,8 @@ export class QueryEditor {
         historyManager: HistoryManager, 
         connectionManager: ConnectionManager, 
         resultsViewer: ResultsViewer,
-        historyPanel: HistoryPanel) {
+        historyPanel: HistoryPanel,
+        parameterProfiles: QueryParameterProfiles) {
 
         this.server = server;
         this.clipboard = clipboard;
@@ -134,6 +137,7 @@ export class QueryEditor {
         this.connections = connectionManager;
         this.resultsViewer = resultsViewer;
         this.historyPanel = historyPanel;
+        this.parameterProfiles = parameterProfiles;
 
         this.errorRangeDecoration = vscode.window.createTextEditorDecorationType({
             before: {
@@ -231,7 +235,7 @@ export class QueryEditor {
                     location: vscode.ProgressLocation.Window,
                     title: 'Running Kusto query...'
                 },
-                () => this.server.runQuery(queryText, connection?.cluster, connection?.database, true, undefined, clientRequestId)
+                () => this.server.runQuery(queryText, connection?.cluster, connection?.database, true, undefined, clientRequestId, this.parameterProfiles.getActiveValues())
             );
             const executionDurationMs = Date.now() - startedAtMs;
 

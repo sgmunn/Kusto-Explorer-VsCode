@@ -111,6 +111,26 @@
     ],
     "commands": [
       {
+        "command": "msKustoExplorer.selectQueryParameterProfile",
+        "title": "Kusto Explorer: Select Query Parameter Profile",
+        "icon": "$(symbol-variable)"
+      },
+      {
+        "command": "msKustoExplorer.createQueryParameterProfile",
+        "title": "Kusto Explorer: Create Query Parameter Profile",
+        "icon": "$(add)"
+      },
+      {
+        "command": "msKustoExplorer.editQueryParameterProfile",
+        "title": "Kusto Explorer: Edit Active Query Parameter Profile",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "msKustoExplorer.openQueryParameterFile",
+        "title": "Kusto Explorer: Open Query Parameters File",
+        "icon": "$(file-code)"
+      },
+      {
         "command": "msKustoExplorer.showRowDetails",
         "title": "Kusto Explorer: Show Row Details",
         "icon": "$(list-selection)"
@@ -2352,7 +2372,8 @@
   },
   "dependencies": {
     "fast-xml-parser": "^5.10.1",
-    "vscode-languageclient": "^9.0.0"
+    "vscode-languageclient": "^9.0.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
