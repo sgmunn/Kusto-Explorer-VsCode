@@ -514,6 +514,34 @@ describe('SimpleDataTableProvider', () => {
             });
         });
 
+        it('stores a resized row-number gutter without changing data-column indexes', () => {
+            const webview = createMockWebView();
+            const view = provider.createView(webview, make2dTable());
+            const html: string = webview.setContent.mock.calls[0]![0];
+            const token = html.match(/var token = '(dt-[a-z0-9]+)'/)![1]!;
+
+            webview.simulateMessage({
+                command: 'setColumnView',
+                _token: token,
+                gutterWidth: 88,
+                columns: [{ index: 0, width: 150 }, { index: 1, width: 200 }],
+            });
+
+            expect(view.getViewState()).toEqual({
+                name: 'TestTable',
+                gutterWidth: 88,
+                columns: [{ index: 0, width: 150 }, { index: 1, width: 200 }],
+            });
+        });
+
+        it('embeds a saved row-number gutter width in the init script', () => {
+            const webview = createMockWebView();
+            provider.createView(webview, make2dTable(), { name: 'TestTable', gutterWidth: 72 });
+            const html: string = webview.setContent.mock.calls[0]![0];
+
+            expect(html).toContain('"gutterWidth":72');
+        });
+
         it('notifies onDidChangeViewState listeners', () => {
             const webview = createMockWebView();
             const view = provider.createView(webview, make2dTable());

@@ -572,6 +572,8 @@ export interface ResultData {
 export interface ResultTableView {
     /** Name of the `ResultTable` this view applies to. */
     name: string;
+    /** Optional pixel width of the generated row-number gutter. */
+    gutterWidth?: number;
     /**
      * Display order for columns. Each entry is the index into the table's
      * original `columns[]` array, plus an optional pixel width. The array

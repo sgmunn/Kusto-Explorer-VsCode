@@ -144,7 +144,7 @@ class DataTableView implements IDataTableView {
                 this.emitRowSelection(sel?.rows ?? []);
             }
             if (msg.command === 'setColumnView') {
-                this.applyColumnViewFromWebview(msg.columns);
+                this.applyColumnViewFromWebview(msg.columns, msg.gutterWidth);
             }
             if (msg.command === 'selectRow' && typeof msg.rowIndex === 'number' && Number.isInteger(msg.rowIndex) && msg.rowIndex >= 0 && msg.rowIndex < this.table.rows.length) {
                 this.emitRowSelection([msg.rowIndex]);
@@ -190,7 +190,7 @@ class DataTableView implements IDataTableView {
      * store as the new view state, and notify listeners so the host can
      * persist and mark the document dirty.
      */
-    private applyColumnViewFromWebview(raw: unknown): void {
+    private applyColumnViewFromWebview(raw: unknown, rawGutterWidth?: unknown): void {
         if (!Array.isArray(raw)) return;
         const colCount = this.table.columns.length;
         const seen = new Set<number>();
@@ -209,6 +209,9 @@ class DataTableView implements IDataTableView {
             columns.push(next);
         }
         const state: ResultTableView = { name: this.table.name, columns };
+        if (typeof rawGutterWidth === 'number' && Number.isFinite(rawGutterWidth) && rawGutterWidth >= 40) {
+            state.gutterWidth = Math.round(rawGutterWidth);
+        }
         this.viewState = state;
         for (const listener of this.viewStateListeners) {
             try { listener(state); } catch { /* listeners are best-effort */ }
@@ -490,8 +493,8 @@ class DataTableView implements IDataTableView {
         .datatable-table thead th:first-child,
         .datatable-table tbody td:first-child {
             width: 44px;
-            min-width: 44px;
-            max-width: 44px;
+            min-width: 40px;
+            max-width: none;
             text-align: right;
             background: var(--vscode-editorGutter-background, var(--vscode-editorWidget-background, var(--vscode-editor-background)));
             color: var(--vscode-editorLineNumber-foreground, var(--vscode-descriptionForeground));
@@ -717,10 +720,11 @@ class DataTableView implements IDataTableView {
     // table-layout: fixed so the widths actually take effect for cells.
     // Reorder restore is handled by colOrder below.
     function applyInitialView() {
-        if (!tableView || !tableView.columns) return;
-        var anyWidth = false;
-        for (var p = 0; p < tableView.columns.length; p++) {
-            var pe = tableView.columns[p];
+        if (!tableView) return;
+        var savedColumns = tableView.columns || [];
+        var anyWidth = typeof tableView.gutterWidth === 'number' && tableView.gutterWidth >= 40;
+        for (var p = 0; p < savedColumns.length; p++) {
+            var pe = savedColumns[p];
             if (pe && typeof pe.width === 'number' && pe.width > 0) { anyWidth = true; break; }
         }
         if (!anyWidth) return;
@@ -773,13 +777,16 @@ class DataTableView implements IDataTableView {
                 ths[i].style.width = ths[i].offsetWidth + 'px';
             }
         }
-        // 2) Overwrite data columns with their saved widths by original index.
+        // 2) Overwrite the gutter and data columns with their saved widths.
+        if (typeof tableView.gutterWidth === 'number' && tableView.gutterWidth >= 40) {
+            ths[0].style.width = tableView.gutterWidth + 'px';
+        }
         var thsByCol = {};
         for (var m = 1; m < ths.length; m++) {
             thsByCol[ths[m].dataset.col] = ths[m];
         }
-        for (var j = 0; j < tableView.columns.length; j++) {
-            var entry = tableView.columns[j];
+        for (var j = 0; j < savedColumns.length; j++) {
+            var entry = savedColumns[j];
             if (!entry || typeof entry.index !== 'number') continue;
             var th = thsByCol[String(entry.index)];
             if (!th) continue;
@@ -916,7 +923,13 @@ class DataTableView implements IDataTableView {
             if (!isNaN(w) && w > 0) entry.width = Math.round(w);
             cols.push(entry);
         }
-        window._vscodeApi.postMessage({ command: 'setColumnView', columns: cols, _token: token });
+        var gutterWidth = ths.length ? parseFloat(ths[0].style.width) : NaN;
+        window._vscodeApi.postMessage({
+            command: 'setColumnView',
+            columns: cols,
+            gutterWidth: !isNaN(gutterWidth) && gutterWidth >= 40 ? Math.round(gutterWidth) : undefined,
+            _token: token
+        });
     }
 
     // Make the container focusable (tabindex=-1) so mousedown can hand it
@@ -998,8 +1011,6 @@ class DataTableView implements IDataTableView {
         if (e.button !== 0) return;
         var th = e.target.closest ? e.target.closest('thead th') : null;
         if (!th) return;
-        // The gutter column is fixed-width — ignore resize attempts on it.
-        if (th.cellIndex === 0) return;
         if (!nearRightEdge(th, e.clientX)) return;
         ensurePinned();
         resizing = { th: th, startX: e.clientX, startWidth: th.offsetWidth };
@@ -1039,7 +1050,6 @@ class DataTableView implements IDataTableView {
         if (resizing) return;
         var th = e.target.closest ? e.target.closest('thead th') : null;
         if (!th) return;
-        if (th.cellIndex === 0) return; // skip gutter
         th.style.cursor = nearRightEdge(th, e.clientX) ? 'col-resize' : '';
     });
 
