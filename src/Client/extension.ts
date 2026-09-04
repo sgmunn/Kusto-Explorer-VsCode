@@ -217,6 +217,9 @@ export async function activate(context: ExtensionContext)
     const historyPanel = new HistoryPanel(context, historyManager, resultsViewer);
     context.subscriptions.push(
         vscode.commands.registerCommand('msKustoExplorer.openHistoryItem', (item) => historyPanel.openHistoryItem(item)),
+        vscode.commands.registerCommand('msKustoExplorer.revealHistoryItemInFinder', (item) => historyPanel.revealHistoryItem(item)),
+        vscode.commands.registerCommand('msKustoExplorer.revealHistoryItemInExplorer', (item) => historyPanel.revealHistoryItem(item)),
+        vscode.commands.registerCommand('msKustoExplorer.revealHistoryItemInFileManager', (item) => historyPanel.revealHistoryItem(item)),
         vscode.commands.registerCommand('msKustoExplorer.deleteHistoryItem', (item) => historyPanel.deleteHistoryItem(item)),
         vscode.commands.registerCommand('msKustoExplorer.clearHistory', () => historyPanel.clearHistory()),
     );

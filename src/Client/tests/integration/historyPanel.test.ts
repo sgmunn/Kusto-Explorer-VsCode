@@ -44,6 +44,13 @@ suite('History Integration Tests', () => {
         await historyManager.clearAllEntries();
     });
 
+    test('Platform-specific reveal commands are registered', async () => {
+        const commands = await vscode.commands.getCommands(true);
+        assert.ok(commands.includes('msKustoExplorer.revealHistoryItemInFinder'));
+        assert.ok(commands.includes('msKustoExplorer.revealHistoryItemInExplorer'));
+        assert.ok(commands.includes('msKustoExplorer.revealHistoryItemInFileManager'));
+    });
+
     test('Adding a history entry creates a retrievable entry', async () => {
         const entriesBefore = historyManager.getEntries();
         assert.strictEqual(entriesBefore.length, 0, 'Should start with no entries');

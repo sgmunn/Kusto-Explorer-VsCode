@@ -76,6 +76,12 @@ export class HistoryPanel {
         await this.resultsViewer.displayHistoryResults(resultData, uri);
     }
 
+    /** Reveals a history entry's backing .kqr file in the native file manager. */
+    async revealHistoryItem(item: { meta: HistoryEntry }): Promise<void> {
+        const uri = this.manager.getHistoryFileUri(item.meta.fileName);
+        await vscode.commands.executeCommand('revealFileInOS', uri);
+    }
+
     /** Deletes a history item after confirmation. */
     async deleteHistoryItem(item: { meta: HistoryEntry }): Promise<void> {
         await this.manager.deleteEntry(item.meta.fileName);

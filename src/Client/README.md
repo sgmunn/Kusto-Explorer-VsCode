@@ -40,6 +40,7 @@ Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases a
 
 - Browse previously executed queries and their results
 - Re-open past results without re-running the query
+- Reveal a result's backing `.kqr` file in Finder, File Explorer, or the Linux file manager from its context menu
 
 ### Results Panel (bottom panel)
 

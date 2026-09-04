@@ -315,6 +315,18 @@
         "icon": "$(go-to-file)"
       },
       {
+        "command": "msKustoExplorer.revealHistoryItemInFinder",
+        "title": "Reveal in Finder"
+      },
+      {
+        "command": "msKustoExplorer.revealHistoryItemInExplorer",
+        "title": "Reveal in File Explorer"
+      },
+      {
+        "command": "msKustoExplorer.revealHistoryItemInFileManager",
+        "title": "Open Containing Folder"
+      },
+      {
         "command": "msKustoExplorer.deleteHistoryItem",
         "title": "Delete",
         "icon": "$(trash)"
@@ -539,6 +551,21 @@
           "command": "msKustoExplorer.deleteHistoryItem",
           "when": "view == msKustoExplorer_history && viewItem == historyItem",
           "group": "inline"
+        },
+        {
+          "command": "msKustoExplorer.revealHistoryItemInFinder",
+          "when": "view == msKustoExplorer_history && viewItem == historyItem && isMac",
+          "group": "8_reveal"
+        },
+        {
+          "command": "msKustoExplorer.revealHistoryItemInExplorer",
+          "when": "view == msKustoExplorer_history && viewItem == historyItem && isWindows",
+          "group": "8_reveal"
+        },
+        {
+          "command": "msKustoExplorer.revealHistoryItemInFileManager",
+          "when": "view == msKustoExplorer_history && viewItem == historyItem && isLinux",
+          "group": "8_reveal"
         },
         {
           "command": "msKustoExplorer.deleteHistoryItem",
