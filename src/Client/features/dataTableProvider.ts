@@ -1349,11 +1349,26 @@ class DataTableView implements IDataTableView {
             }
         } catch (_) { /* table not initialized yet */ }
     }
-    grid.on('datatable.update', reapplyGridView);
-    grid.on('datatable.page', reapplyGridView);
-    grid.on('datatable.search', reapplyGridView);
-    grid.on('datatable.multisearch', reapplyGridView);
-    grid.on('datatable.refresh', reapplyGridView);
+    // Simple-DataTables emits redraw events before it has necessarily
+    // replaced every tbody row. Reordering synchronously can therefore fix
+    // reused rows while leaving rows inserted later in source-column order.
+    // Run once on the next frame, after the redraw has completed.
+    var gridViewReapplyPending = false;
+    function scheduleGridViewReapply() {
+        if (gridViewReapplyPending) return;
+        gridViewReapplyPending = true;
+        var run = function() {
+            gridViewReapplyPending = false;
+            reapplyGridView();
+        };
+        try { requestAnimationFrame(run); }
+        catch (_) { setTimeout(run, 0); }
+    }
+    grid.on('datatable.update', scheduleGridViewReapply);
+    grid.on('datatable.page', scheduleGridViewReapply);
+    grid.on('datatable.search', scheduleGridViewReapply);
+    grid.on('datatable.multisearch', scheduleGridViewReapply);
+    grid.on('datatable.refresh', scheduleGridViewReapply);
 
     // ── Column-view state ───────────────────────────────────────────────
     // Stamp each data-column header with its ORIGINAL column index (the

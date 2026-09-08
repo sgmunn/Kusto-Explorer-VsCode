@@ -221,6 +221,8 @@ describe('SimpleDataTableProvider', () => {
             expect(html).toContain("depth.textContent = '↓' + activity.maxDescendantDepth");
             expect(html).toContain("activityDeepestButton.addEventListener('click', revealNextDeepestActivity)");
             expect(html).toContain("item.scrollIntoView({ block: 'center' })");
+            expect(html).toContain("grid.on('datatable.update', scheduleGridViewReapply)");
+            expect(html).toContain('requestAnimationFrame(run)');
             expect(html).toContain("activitySplitter.addEventListener('mousedown', onActivitySplitMouseDown)");
             expect(html).toContain('activitySplitter.focus()');
             expect(html).toContain("activityTreePane.style.flexBasis = clamped + 'px'");
