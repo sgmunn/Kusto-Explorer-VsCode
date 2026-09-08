@@ -14,6 +14,8 @@ import type { ConnectionManager } from './connectionManager';
 import { ENTITY_DEFINITION_SCHEME } from './entityDefinitionProvider';
 import { resultTableToMarkdown } from './markdown';
 import type { ResultsViewer } from './resultsViewer';
+import type { HistoryManager } from './historyManager';
+import { formatSavedQueryResults } from './savedQueryResults';
 
 const COPILOT_PARTICIPANT_ID = 'msKustoExplorer';
 const MAX_SCHEMA_CHARS = 30000; // Approximate limit to stay within token limits
@@ -26,6 +28,8 @@ let languageClient: IServer;
 let conn: ConnectionManager;
 
 let resultsViewer: ResultsViewer;
+
+let history: HistoryManager;
 
 
 // =============================================================================
@@ -77,10 +81,17 @@ function registerTool<T>(
 // Activation
 // =============================================================================
 
-export function activate(context: vscode.ExtensionContext, srv: IServer, connectionManager: ConnectionManager, rv: ResultsViewer): void {
+export function activate(
+    context: vscode.ExtensionContext,
+    srv: IServer,
+    connectionManager: ConnectionManager,
+    rv: ResultsViewer,
+    historyManager: HistoryManager
+): void {
     languageClient = srv;
     conn = connectionManager;
     resultsViewer = rv;
+    history = historyManager;
 
     // Register tools
     registerTool(context, 'msKustoExplorer_getClusters', 'Getting available clusters...', getClusters);
@@ -107,6 +118,7 @@ export function activate(context: vscode.ExtensionContext, srv: IServer, connect
     registerTool(context, 'msKustoExplorer_getQueryResultType', 'Getting query result type...', getQueryResultType);
     registerTool(context, 'msKustoExplorer_getFunctionResultType', 'Getting function result type...', getFunctionResultType);
     registerTool(context, 'msKustoExplorer_runQuery', 'Running query...', runQuery);
+    registerTool(context, 'msKustoExplorer_getQueryResults', 'Reading saved query results...', getQueryResults);
 
     // Register the Chat Participant - user invokes with @kusto
     const participant = vscode.chat.createChatParticipant(COPILOT_PARTICIPANT_ID, handleChatRequest);
@@ -430,6 +442,34 @@ async function runQuery(input: { query: string; cluster?: string; database?: str
     }
 
     return resultTableToMarkdown(result.data.tables[0]!);
+}
+
+async function getQueryResults(input: { clientRequestId: string; tableName?: string; maxRows?: number }): Promise<string> {
+    const clientRequestId = input.clientRequestId?.trim();
+    if (!clientRequestId) {
+        return 'A full client request id (CID) is required.';
+    }
+
+    const matches = history.getEntriesByClientRequestId(clientRequestId);
+    if (matches.length === 0) {
+        return `No saved query results were found for CID ${clientRequestId}. The History entry may have expired or been cleared.`;
+    }
+    if (matches.length > 1) {
+        return `CID ${clientRequestId} is ambiguous: ${matches.length} saved History entries have that client request id. Select the intended result in History and use its CID.`;
+    }
+
+    const data = await history.getEntryData(matches[0]!);
+    if (!data) {
+        return `The History entry for CID ${clientRequestId} exists, but its saved result file could not be read.`;
+    }
+    if (data.clientRequestId !== clientRequestId) {
+        return `The saved result file for CID ${clientRequestId} does not contain the same client request id.`;
+    }
+
+    return formatSavedQueryResults(data, clientRequestId, {
+        ...(input.tableName !== undefined && { tableName: input.tableName }),
+        ...(input.maxRows !== undefined && { maxRows: input.maxRows }),
+    });
 }
 
 // =============================================================================

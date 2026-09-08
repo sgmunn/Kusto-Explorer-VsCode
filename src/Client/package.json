@@ -22,6 +22,7 @@
     "onLanguage:kusto",
     "onFileSystem:msKustoExplorer-scratch",
     "onLanguageModelTool:msKustoExplorer_getClusters",
+    "onLanguageModelTool:msKustoExplorer_getQueryResults",
     "onChatParticipant:msKustoExplorer"
   ],
   "extensionDependencies": [
@@ -1743,6 +1744,10 @@
       {
         "toolId": "msKustoExplorer_runQuery",
         "instructions": "Use this tool to run a KQL query and return results when the user asks to execute a query or see data, or if you need to know the result of a query to answer a user question. Queries are run in read-only mode for safety. Please limit the output of queries to just the columns necessary and limit the number of rows unless you know you need all rows to answer the request. If the user wants to see the results, use the showResults parameter with true and add a render operator to the query to show a visual chart."
+      },
+      {
+        "toolId": "msKustoExplorer_getQueryResults",
+        "instructions": "Use this tool when the user provides a client request id (CID) and wants to inspect or analyze the already-saved results without rerunning the query. Pass the full CID exactly. Use tableName to select one result table when needed and maxRows to limit returned data."
       }
     ],
     "languageModelTools": [
@@ -2442,6 +2447,45 @@
           },
           "required": [
             "query"
+          ]
+        }
+      },
+      {
+        "name": "msKustoExplorer_getQueryResults",
+        "displayName": "Get Saved Kusto Query Results",
+        "toolReferenceName": "kustoQueryResults",
+        "canBeReferencedInPrompt": true,
+        "userDescription": "Reads saved query results from History by client request id without rerunning the query.",
+        "tags": [
+          "kusto",
+          "kql",
+          "query",
+          "results",
+          "history",
+          "cid"
+        ],
+        "modelDescription": "Reads an existing saved Kusto query execution from local History by exact client request id (CID) and returns its result tables as Markdown. This tool does not rerun the query. Use it when the user provides or refers to a copied CID and asks to inspect or analyze those saved results.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "clientRequestId": {
+              "type": "string",
+              "description": "The full client request id copied from the query, for example KustoExplorerVsCode;550e8400-e29b-41d4-a716-446655440000."
+            },
+            "tableName": {
+              "type": "string",
+              "description": "Optional exact result-table name. When omitted, all result tables are returned."
+            },
+            "maxRows": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100,
+              "description": "Maximum number of rows returned from each result table."
+            }
+          },
+          "required": [
+            "clientRequestId"
           ]
         }
       }

@@ -65,6 +65,7 @@ Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases a
 ### Copilot Integration
 
 - Ask Copilot to help write, run, and diagnose your Kusto queries
+- Copy a query run's CID and ask Copilot to use `#kustoQueryResults` to analyze its saved History results without rerunning the query
 
 ## Requirements
 

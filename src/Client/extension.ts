@@ -239,7 +239,7 @@ export async function activate(context: ExtensionContext)
     );
 
     // activate copilot hooks
-    copilot.activate(context, server, connectionManager, resultsViewer);
+    copilot.activate(context, server, connectionManager, resultsViewer, historyManager);
 
     // Expose internal components for integration tests
     return { historyManager, connectionManager, resultsViewer, server };

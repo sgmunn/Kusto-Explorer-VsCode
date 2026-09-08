@@ -47,8 +47,9 @@ run their queries** in context. The editor host already understands the active `
 connected cluster/database, and the schema, so an agent can be wired into that same context to author
 and diagnose KQL alongside the user. Beyond the document, the agent is given a set of **Kusto tools**
 that let it understand and explore schemas (clusters, databases, tables, columns, functions),
-**run queries**, and even **render charts** for the results it gets back — so it can investigate the
-data the way a user would, not just write text. This is exposed through the language-model tools
+**run queries**, inspect saved History results by exact client request id (CID), and even **render
+charts** for the results it gets back — so it can investigate the data the way a user would, not
+just write text. This is exposed through the language-model tools
 registered in [src/Client/features/copilot.ts](src/Client/features/copilot.ts) (see §3.3), and it is
 a first-class reason the product lives here rather than only on the desktop.
 

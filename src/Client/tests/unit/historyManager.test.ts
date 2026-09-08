@@ -84,6 +84,36 @@ describe('HistoryManager', () => {
         });
     });
 
+    describe('getEntriesByClientRequestId', () => {
+        it('matches the full CID exactly', async () => {
+            const mgr = createManager();
+            const first = makeResultData('first');
+            const second = makeResultData('second');
+            first.clientRequestId = 'KustoExplorerVsCode;11111111-1111-1111-1111-111111111111';
+            second.clientRequestId = 'KustoExplorerVsCode;22222222-2222-2222-2222-222222222222';
+            await mgr.addHistoryEntry(first);
+            await mgr.addHistoryEntry(second);
+
+            const matches = mgr.getEntriesByClientRequestId(first.clientRequestId);
+
+            expect(matches).toHaveLength(1);
+            expect(matches[0]!.queryPreview).toBe('first');
+            expect(mgr.getEntriesByClientRequestId('11111111-1111-1111-1111-111111111111')).toEqual([]);
+        });
+
+        it('returns every duplicate so callers can reject ambiguity', async () => {
+            const mgr = createManager();
+            const first = makeResultData('first');
+            const second = makeResultData('second');
+            first.clientRequestId = 'KustoExplorerVsCode;duplicate';
+            second.clientRequestId = first.clientRequestId;
+            await mgr.addHistoryEntry(first);
+            await mgr.addHistoryEntry(second);
+
+            expect(mgr.getEntriesByClientRequestId(first.clientRequestId)).toHaveLength(2);
+        });
+    });
+
     describe('addHistoryEntry', () => {
         it('creates a .kqr file on disk', async () => {
             const mgr = createManager();

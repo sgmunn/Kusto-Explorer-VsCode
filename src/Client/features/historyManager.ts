@@ -216,6 +216,11 @@ export class HistoryManager {
         return this.readIndex();
     }
 
+    /** Returns every History entry whose full client request id matches exactly. */
+    getEntriesByClientRequestId(clientRequestId: string): HistoryEntry[] {
+        return this.readIndex().filter(entry => entry.clientRequestId === clientRequestId);
+    }
+
     /**
      * Adds a query result to the history. Writes a .kqr file and prepends
      * the entry to the index. Returns the URI of the new history file.
