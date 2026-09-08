@@ -56,9 +56,10 @@ describe('DocumentViewProvider HTML', () => {
         rows: [['one']],
     };
 
-    function buildHtml(hasChart: boolean): string {
+    function buildHtml(hasChart: boolean, includeStructured = false): string {
         const builder = Object.create(DocumentViewProvider.prototype) as DocumentViewProvider;
         const tableWebView = { contentHtml: '<table data-test="result-grid"></table>' } as WebViewAdapter;
+        const structuredWebView = { contentHtml: '<table data-test="structured-grid"></table>' } as WebViewAdapter;
         return builder.BuildMultiTabbedHtml(
             hasChart,
             'all',
@@ -70,6 +71,7 @@ describe('DocumentViewProvider HTML', () => {
             undefined,
             [table],
             [tableWebView],
+            includeStructured ? [{ tableIndex: 0, webView: structuredWebView }] : undefined,
         );
     }
 
@@ -84,5 +86,14 @@ describe('DocumentViewProvider HTML', () => {
 
         expect(html).toContain('<div id="table-0" class="view-content"');
         expect(html).not.toContain('<div id="table-0" class="view-content active"');
+    });
+
+    it('adds a structured data tab beside the normal data tab', () => {
+        const html = buildHtml(false, true);
+
+        expect(html).toContain('data-view="structured-table-0"');
+        expect(html).toContain('>Data - Structured</button>');
+        expect(html).toContain('<div id="structured-table-0" class="view-content"');
+        expect(html).toContain('<table data-test="structured-grid"></table>');
     });
 });

@@ -182,6 +182,113 @@ describe('SimpleDataTableProvider', () => {
             });
         });
 
+        it('embeds an activity-tree projection while preserving source row indexes', () => {
+            const webview = createMockWebView();
+            provider.createView(webview, make2dTable(), undefined, {
+                viewStateName: 'TestTable::structured',
+                activityTree: {
+                    currentActivityColumnIndex: 0,
+                    parentActivityColumnIndex: 1,
+                    activities: [
+                        { activityId: 'C', childActivityCount: 1, subtreeActivityCount: 2, maxDescendantDepth: 1 },
+                        { activityId: 'A', parentActivityIndex: 0, childActivityCount: 0, subtreeActivityCount: 1, maxDescendantDepth: 0 },
+                    ],
+                    rows: [
+                        { sourceRowIndex: 2, depth: 0, firstInActivity: true, eventCount: 1, activityIndex: 0 },
+                        { sourceRowIndex: 0, depth: 1, firstInActivity: true, eventCount: 2, activityIndex: 1 },
+                        { sourceRowIndex: 1, depth: 1, firstInActivity: false, activityIndex: 1 },
+                    ],
+                },
+            });
+
+            const html: string = webview.setContent.mock.calls[0]![0];
+            expect(html).toContain('"sourceRowIndexes":[2,0,1]');
+            expect(html).toContain('"currentActivityColumnIndex":0');
+            expect(html).toContain("'data-orig-row': String(sourceRowIndex)");
+            expect(html).toContain('class="activity-tree-pane"');
+            expect(html).toContain('class="activity-splitter"');
+            expect(html).toContain('class="activity-tree-deepest"');
+            expect(html).toContain('role="separator"');
+            expect(html).toContain('class="activity-events-pane"');
+            expect(html).toContain('role="tree"');
+            expect(html).toContain("? { attributes: { 'data-activity-event-row': '1' }, cells: cells }");
+            expect(html).toContain('activityRows[treeRow.activityIndex].push(normalizedRow)');
+            expect(html).toContain('grid.data.data = activityRows[activityIndex]');
+            expect(html).toContain('createActivityTreeNode(childIndex, childrenByParent)');
+            expect(html).toContain("item.setAttribute('role', 'treeitem')");
+            expect(html).toContain("label.textContent = marker");
+            expect(html).toContain("disclosure.textContent = expanded ? '▼' : '▶'");
+            expect(html).toContain("depth.textContent = '↓' + activity.maxDescendantDepth");
+            expect(html).toContain("activityDeepestButton.addEventListener('click', revealNextDeepestActivity)");
+            expect(html).toContain("item.scrollIntoView({ block: 'center' })");
+            expect(html).toContain("activitySplitter.addEventListener('mousedown', onActivitySplitMouseDown)");
+            expect(html).toContain('activitySplitter.focus()');
+            expect(html).toContain("activityTreePane.style.flexBasis = clamped + 'px'");
+            expect(html).toContain("e.key === 'ArrowLeft'");
+            expect(html).toContain('var initialRows = activityRows && selectedActivityIndex !== undefined');
+            expect(html).toContain('data: { headings: headings, data: initialRows }');
+            expect(html).toContain("viewContainer.addEventListener('kusto-view-activated', resolve, { once: true })");
+            expect(html).not.toContain('function waitForVisibleGrid()');
+            const headHtml: string = webview.setup.mock.calls[0]![0];
+            expect(headHtml).toContain('.activity-structured-layout');
+            expect(headHtml).toContain('.activity-tree-group');
+            expect(headHtml).toContain('.activity-tree-item.selected');
+            expect(headHtml).toContain('.activity-splitter.dragging');
+            expect(headHtml).toContain('.activity-tree-depth');
+        });
+
+        it('can reuse source rows published by an earlier sibling grid', () => {
+            const publisher = createMockWebView();
+            const consumer = createMockWebView();
+            const source = make2dTable();
+
+            provider.createView(publisher, source, undefined, { sharedDataKey: 'result-0' });
+            provider.createView(consumer, source, undefined, {
+                sharedDataKey: 'result-0',
+                reuseSharedData: true,
+                activityTree: {
+                    currentActivityColumnIndex: 0,
+                    parentActivityColumnIndex: 1,
+                    activities: [{ activityId: 'C', childActivityCount: 0, subtreeActivityCount: 1, maxDescendantDepth: 0 }],
+                    rows: [{ sourceRowIndex: 2, depth: 0, firstInActivity: true, eventCount: 1, activityIndex: 0 }],
+                },
+            });
+
+            const publisherHtml: string = publisher.setContent.mock.calls[0]![0];
+            const consumerHtml: string = consumer.setContent.mock.calls[0]![0];
+            expect(publisherHtml).toContain('"rows":[["A","10"],["B","20"],["C","30"]]');
+            expect(consumerHtml).not.toContain('"rows":[["A","10"],["B","20"],["C","30"]]');
+            expect(consumerHtml).toContain('"reuseSharedData":true');
+            expect(consumerHtml).toContain('sharedSource.rows[sourceRowIndex]');
+        });
+
+        it('reports projected selections against the original result table', () => {
+            const webview = createMockWebView();
+            const selected: unknown[] = [];
+            provider.onDidSelectRow(selection => selected.push(selection));
+            const source = make2dTable();
+            provider.createView(webview, source, undefined, {
+                activityTree: {
+                    currentActivityColumnIndex: 0,
+                    parentActivityColumnIndex: 1,
+                    activities: [
+                        { activityId: 'C', childActivityCount: 1, subtreeActivityCount: 2, maxDescendantDepth: 1 },
+                        { activityId: 'A', parentActivityIndex: 0, childActivityCount: 0, subtreeActivityCount: 1, maxDescendantDepth: 0 },
+                    ],
+                    rows: [
+                        { sourceRowIndex: 2, depth: 0, firstInActivity: true, eventCount: 1, activityIndex: 0 },
+                        { sourceRowIndex: 0, depth: 1, firstInActivity: true, eventCount: 1, activityIndex: 1 },
+                    ],
+                },
+            });
+            const html: string = webview.setContent.mock.calls[0]![0];
+            const token = html.match(/var token = '(dt-[^']+)'/)?.[1];
+
+            webview.simulateMessage({ command: 'setSelection', selection: { rows: [2], cols: [0] }, _token: token });
+
+            expect(selected).toEqual([{ table: source, rowIndexes: [2] }]);
+        });
+
         it('publishes row inspection from the stable click selection, not mousedown', () => {
             const webview = createMockWebView();
             provider.createView(webview, make2dTable());
@@ -200,6 +307,8 @@ describe('SimpleDataTableProvider', () => {
             const html: string = webview.setContent.mock.calls[0]![0];
             expect(html).toContain('<table>');
             expect(html).toContain('<script>');
+            const script = html.slice(html.indexOf('<script>') + '<script>'.length, html.lastIndexOf('</script>'));
+            expect(() => new Function(script)).not.toThrow();
         });
 
         it('cycles column sorting through ascending, descending, and original order', () => {
@@ -663,6 +772,26 @@ describe('SimpleDataTableProvider', () => {
                 name: 'TestTable',
                 gutterWidth: 88,
                 columns: [{ index: 0, width: 150 }, { index: 1, width: 200 }],
+            });
+        });
+
+        it('uses an independent view-state key for a derived presentation', () => {
+            const webview = createMockWebView();
+            const view = provider.createView(webview, make2dTable(), undefined, {
+                viewStateName: 'TestTable::activity-structured:0',
+            });
+            const html: string = webview.setContent.mock.calls[0]![0];
+            const token = html.match(/var token = '(dt-[a-z0-9]+)'/)![1]!;
+
+            webview.simulateMessage({
+                command: 'setColumnView',
+                _token: token,
+                columns: [{ index: 0, width: 175 }],
+            });
+
+            expect(view.getViewState()).toEqual({
+                name: 'TestTable::activity-structured:0',
+                columns: [{ index: 0, width: 175 }],
             });
         });
 

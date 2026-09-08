@@ -32,6 +32,9 @@ describe('WorkbenchDataTableProvider', () => {
 
         expect(provider.createView(webview, table)).toBe(view);
         expect(createView).toHaveBeenCalledWith(webview, table, undefined);
+        const options = { viewStateName: 'Results::structured' };
+        expect(provider.createView(webview, table, undefined, options)).toBe(view);
+        expect(createView).toHaveBeenLastCalledWith(webview, table, undefined, options);
         expect(provider.onDidSelectRow(listener)).toBe(disposable);
         expect(onDidSelectRow).toHaveBeenCalledWith(listener);
     });

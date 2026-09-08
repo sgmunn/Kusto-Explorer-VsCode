@@ -57,6 +57,27 @@ describe('severity row highlighting', () => {
         expect(contribution.headHtml).toContain('td:not(:first-child)');
     });
 
+    it('tags structured row objects without assuming an array row shape', () => {
+        const contribution = createSeverityHighlightingContribution(colors);
+        const container = { style: { setProperty: vi.fn(), removeProperty: vi.fn() } };
+        const tableData = {
+            columns: [{ name: 'Message' }, { name: 'Severity' }],
+            rows: [['message', 3]],
+        };
+        const rows = [{ attributes: { 'data-activity-tree-row': '1' }, cells: [
+            { attributes: {} },
+            { attributes: {} },
+        ] }];
+
+        Function('container', 'tableData', 'rows', contribution.beforeCreateScript ?? '')(
+            container,
+            tableData,
+            rows,
+        );
+
+        expect(rows[0]!.cells[0]!.attributes['data-workbench-severity']).toBe('3');
+    });
+
     it('does not tag rows when no exact level or severity column exists', () => {
         const { rows } = applyContribution('SeverityText', [1]);
 

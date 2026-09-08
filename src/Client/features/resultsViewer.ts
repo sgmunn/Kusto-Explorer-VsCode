@@ -16,6 +16,7 @@ import { ChartAspectRatio } from './chartProvider';
 import type { IChartEditorProvider, IChartEditorView } from './chartEditorProvider';
 import type { IDataTableProvider, IDataTableView } from './dataTableProvider';
 import { RowDetailsView, rowDetailsViewId } from './rowDetailsView';
+import { buildActivityTreeProjection } from './activityTree';
 import type { IWebView } from './webview';
 import { escapeHtml } from './html';
 
@@ -92,7 +93,14 @@ interface ResultViewerState {
     resultData: server.ResultData;
     tableNames: string[];
     activeView: string; // 'chart', 'table-0', 'table-1', etc.
+    /** Maps rendered data-tab ids to their IDataTableView array slot. */
+    tableViewIndexes?: Record<string, number>;
     chartOptionsOverride?: server.ChartOptions;
+}
+
+interface StructuredTableWebView {
+    tableIndex: number;
+    webView: WebViewAdapter;
 }
 
 /**
@@ -314,7 +322,7 @@ function storeTableView(resultData: server.ResultData, state: server.ResultTable
 }
 
 /**
- * Finds the saved view for a table by name. Returns `undefined` if no
+ * Finds the saved view for a table or derived presentation by key. Returns `undefined` if no
  * matching entry exists in `resultData.tableViews`.
  */
 function findTableView(resultData: server.ResultData, tableName: string): server.ResultTableView | undefined {
@@ -1383,6 +1391,8 @@ export class ResultsViewer {
     }
 
     private getActiveTableIndex(state: ResultViewerState): number {
+        const mapped = state.tableViewIndexes?.[state.activeView];
+        if (mapped !== undefined) return mapped;
         const match = state.activeView.match(/^table-(\d+)$/);
         return match ? parseInt(match[1]!, 10) : 0;
     }
@@ -1885,10 +1895,12 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         const tableNames = resultData.tables.map(t => t.name);
         const firstActiveView = hasChart ? 'chart' : 'table-0';
         const existingState = this.viewer.viewerStates.get(webviewPanel);
+        const tableViewIndexes: Record<string, number> = {};
         this.viewer.viewerStates.set(webviewPanel, {
             resultData,
             tableNames,
             activeView: firstActiveView,
+            tableViewIndexes,
             ...(existingState?.chartOptionsOverride && { chartOptionsOverride: existingState.chartOptionsOverride })
         });
 
@@ -1918,10 +1930,18 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         prevTableViews?.forEach(v => v.dispose());
         const docTableViews: IDataTableView[] = [];
         const docTableWebViews: WebViewAdapter[] = [];
+        const structuredTableWebViews: StructuredTableWebView[] = [];
         for (let i = 0; i < resultData.tables.length; i++) {
             const adapter = new WebViewAdapter(webviewPanel.webview, `setTableContent-${i}`);
             const table = resultData.tables[i]!;
-            const view = this.dataTableProvider.createView(adapter, table, findTableView(resultData, table.name));
+            const sharedDataKey = `document-result-table-${i}`;
+            const view = this.dataTableProvider.createView(
+                adapter,
+                table,
+                findTableView(resultData, table.name),
+                { sharedDataKey }
+            );
+            tableViewIndexes[`table-${i}`] = docTableViews.length;
             docTableViews.push(view);
             docTableWebViews.push(adapter);
             view.onDidChangeViewState((state) => {
@@ -1932,6 +1952,26 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
                 void this.runSelfEdit(webviewPanel, () =>
                     persistResultDataToDocument(document, resultData));
             });
+
+            const activityTree = buildActivityTreeProjection(table);
+            if (activityTree) {
+                const structuredViewName = `${table.name}::activity-structured:${i}`;
+                const structuredAdapter = new WebViewAdapter(webviewPanel.webview, `setStructuredTableContent-${i}`);
+                const structuredView = this.dataTableProvider.createView(
+                    structuredAdapter,
+                    table,
+                    findTableView(resultData, structuredViewName),
+                    { viewStateName: structuredViewName, activityTree, sharedDataKey, reuseSharedData: true }
+                );
+                tableViewIndexes[`structured-table-${i}`] = docTableViews.length;
+                docTableViews.push(structuredView);
+                structuredTableWebViews.push({ tableIndex: i, webView: structuredAdapter });
+                structuredView.onDidChangeViewState((state) => {
+                    storeTableView(resultData, state);
+                    void this.runSelfEdit(webviewPanel, () =>
+                        persistResultDataToDocument(document, resultData));
+                });
+            }
         }
         this.viewer.dataTableViews.set(webviewPanel, docTableViews);
         this.viewer.dataTableWebViews.set(webviewPanel, docTableWebViews);
@@ -1949,7 +1989,8 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         }
 
         const html = this.BuildMultiTabbedHtml(hasChart, 'all', docWebView, docEditorWebView, chartOptions,
-            resultData.query, resultData.cluster, resultData.database, resultData.tables, docTableWebViews);
+            resultData.query, resultData.cluster, resultData.database, resultData.tables, docTableWebViews,
+            structuredTableWebViews);
         webviewPanel.webview.html = injectMessageHandlerScripts(html);
     }
 
@@ -1980,7 +2021,8 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         cluster?: string,
         database?: string,
         resultTables?: server.ResultTable[],
-        tableWebViews?: WebViewAdapter[]
+        tableWebViews?: WebViewAdapter[],
+        structuredTableWebViews?: StructuredTableWebView[]
     ): string {
         const tables = resultTables ?? [];
 
@@ -1992,6 +2034,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         const visibleTabCount =
             (showChart ? 1 : 0) +
             (showTables ? tables.length : 0) +
+            (showTables ? (structuredTableWebViews?.length ?? 0) : 0) +
             (showQuery ? 1 : 0);
         const showTabs = visibleTabCount > 1;
 
@@ -2007,6 +2050,11 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         const tableContents = showTables
             ? tables.map((_t, i) =>
                 `<div id="table-${i}" class="view-content${firstActiveView === `table-${i}` ? ' active' : ''}" data-vscode-context='{"chartVisible": false, "queryVisible": false, "preventDefaultContextMenuItems": true}'>${tableWebViews?.[i]?.contentHtml ?? ''}</div>`
+            ).join('')
+            : '';
+        const structuredTableContents = showTables
+            ? (structuredTableWebViews ?? []).map(item =>
+                `<div id="structured-table-${item.tableIndex}" class="view-content" data-vscode-context='{"chartVisible": false, "queryVisible": false, "preventDefaultContextMenuItems": true}'>${item.webView.contentHtml}</div>`
             ).join('')
             : '';
 
@@ -2030,6 +2078,11 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
                         `<button${!showChart && i === 0 ? ' class="active"' : ''} data-view="table-${i}" onclick="switchView('table-${i}')">${this.escapeHtml(t.name)} (${t.rows.length})</button>`
                     ).join('');
                 }
+                tableButtonsHtml += (structuredTableWebViews ?? []).map(item => {
+                    const table = tables[item.tableIndex]!;
+                    const label = tables.length === 1 ? 'Data - Structured' : `${this.escapeHtml(table.name)} - Structured (${table.rows.length})`;
+                    return `<button data-view="structured-table-${item.tableIndex}" onclick="switchView('structured-table-${item.tableIndex}')">${label}</button>`;
+                }).join('');
             }
 
             const queryButton = showQuery
@@ -2159,6 +2212,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         <div class="content-area">
             ${showChart ? `<div id="chart" class="view-content${chartAspectClass}${firstActiveView === 'chart' ? ' active' : ''}"${chartStyle}${chartDataAttrs} data-vscode-context='{"chartVisible": true, "queryVisible": false, "preventDefaultContextMenuItems": true}'>${webview?.contentHtml ?? ''}</div>` : ''}
             ${tableContents}
+            ${structuredTableContents}
             ${showQuery ? `<div id="query" class="view-content" data-vscode-context='{"chartVisible": false, "queryVisible": true, "preventDefaultContextMenuItems": true}'>
                 <div class="query-info">
                     ${cluster ? `<span class="query-meta"><strong>Cluster:</strong> ${this.escapeHtml(cluster)}</span>` : ''}
@@ -2183,13 +2237,16 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
             document.querySelectorAll('.view-content').forEach(function(el) { el.classList.remove('active'); });
             document.querySelectorAll('.view-toggle button[data-view]').forEach(function(el) { el.classList.remove('active'); });
             var target = document.getElementById(viewId);
-            if (target) target.classList.add('active');
+            if (target) {
+                target.classList.add('active');
+                target.dispatchEvent(new CustomEvent('kusto-view-activated'));
+            }
             var btn = document.querySelector('.view-toggle button[data-view="' + viewId + '"]');
             if (btn) btn.classList.add('active');
             // Hide/restore edit panel based on view and user preference
             var editPanel = document.getElementById('edit-panel');
             if (editPanel) {
-                if (viewId.startsWith('table-') || viewId === 'query') {
+                if (viewId.startsWith('table-') || viewId.startsWith('structured-table-') || viewId === 'query') {
                     editPanel.classList.remove('visible');
                 } else if (editPanelUserVisible) {
                     editPanel.classList.add('visible');

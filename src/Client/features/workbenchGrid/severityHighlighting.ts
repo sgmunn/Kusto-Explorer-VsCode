@@ -61,7 +61,10 @@ export function createSeverityHighlightingContribution(
         rows.forEach(function(row, rowIndex) {
             var level = Number(String(tableData.rows[rowIndex][workbenchSeverityColumn]).trim());
             if (!Number.isInteger(level) || level < 1 || level > 5) return;
-            row[0].attributes['data-workbench-severity'] = String(level);
+            var cells = Array.isArray(row) ? row : row.cells;
+            if (cells && cells[0] && cells[0].attributes) {
+                cells[0].attributes['data-workbench-severity'] = String(level);
+            }
         });
     }`,
     };

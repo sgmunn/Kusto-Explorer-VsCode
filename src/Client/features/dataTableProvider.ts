@@ -20,6 +20,7 @@ import { formatCfHtml } from './clipboard';
 import { resultTableToHtml } from './html';
 import { resultTableToMarkdown } from './markdown';
 import { resultTableToTsv, formatCellValue } from './tsv';
+import type { ActivityTreeProjection } from './activityTree';
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -66,9 +67,21 @@ export interface IDataTableProvider {
      * @param view Optional initial presentation state. When provided, the
      *             grid is rendered with the saved column order and widths.
      */
-    createView(webview: IWebView, table: ResultTable, view?: ResultTableView): IDataTableView;
+    createView(webview: IWebView, table: ResultTable, view?: ResultTableView, options?: DataTableViewOptions): IDataTableView;
     /** Subscribe to row picks from any grid created by this provider. */
     onDidSelectRow(listener: (selection: ResultRowSelection) => void): { dispose(): void };
+}
+
+/** Optional alternate presentation of a source result table. */
+export interface DataTableViewOptions {
+    /** Independent persistence key for column order/width state. */
+    viewStateName?: string;
+    /** Depth-first activity projection while retaining source-row identity. */
+    activityTree?: ActivityTreeProjection;
+    /** Page-local key used to publish formatted source rows for a sibling view. */
+    sharedDataKey?: string;
+    /** Reuse rows published earlier under sharedDataKey instead of embedding them again. */
+    reuseSharedData?: boolean;
 }
 
 /** Fork-owned behavior that can be composed into the legacy grid webview. */
@@ -134,7 +147,8 @@ class DataTableView implements IDataTableView {
         table: ResultTable,
         view: ResultTableView | undefined,
         private readonly onSelectRow: (selection: ResultRowSelection) => void,
-        private readonly contribution?: IDataTableWebviewContribution
+        private readonly contribution?: IDataTableWebviewContribution,
+        private readonly options?: DataTableViewOptions
     ) {
         this.webview = webview;
         this.server = server;
@@ -170,6 +184,9 @@ class DataTableView implements IDataTableView {
             }
         });
 
+        const projectedRows = options?.activityTree?.rows;
+        const sourceRowIndexes = projectedRows?.map(row => row.sourceRowIndex);
+        const reuseSharedData = options?.reuseSharedData === true && !!options.sharedDataKey;
         const data = {
             // Pass column names and cell values raw (no HTML escaping).
             // The init script wraps each cell as a { data, text, order } object
@@ -177,12 +194,37 @@ class DataTableView implements IDataTableView {
             // Simple-DataTables takes its early-return path in readDataCell and
             // never parses cell strings as HTML. Rendering goes through the
             // textContent path, so '<', '>', '&', and '"' display verbatim.
-            columns: table.columns.map(c => ({ ...c })),
-            rows: table.rows.map(row => row.map(cell => formatCellValue(cell)))
+            sharedDataKey: options?.sharedDataKey,
+            reuseSharedData,
+            columns: reuseSharedData ? undefined : table.columns.map(c => ({ ...c })),
+            rows: reuseSharedData
+                ? undefined
+                : table.rows.map(row => row.map(cell => formatCellValue(cell))),
+            sourceRowIndexes,
+            activityTree: options?.activityTree
+                ? {
+                    currentActivityColumnIndex: options.activityTree.currentActivityColumnIndex,
+                    activities: options.activityTree.activities,
+                    rows: options.activityTree.rows,
+                }
+                : undefined,
         };
         const json = JSON.stringify(data).replace(/<\//g, '<\\/');
         const viewJson = JSON.stringify(this.viewState ?? null).replace(/<\//g, '<\\/');
-        webview.setContent(`<table></table>${this.buildInitScript(json, viewJson)}`);
+        const tableMarkup = options?.activityTree
+            ? `<div class="activity-structured-layout">
+                <aside class="activity-tree-pane" aria-label="Activity hierarchy">
+                    <div class="activity-tree-heading">
+                        <span>Activities</span>
+                        <button class="activity-tree-deepest" type="button" title="Reveal a deepest activity path" hidden>Deepest</button>
+                    </div>
+                    <div class="activity-tree" role="tree" aria-label="Activities"></div>
+                </aside>
+                <div class="activity-splitter" role="separator" aria-label="Resize activity tree" aria-orientation="vertical" tabindex="0"></div>
+                <div class="activity-events-pane"><table></table></div>
+            </div>`
+            : '<table></table>';
+        webview.setContent(`${tableMarkup}${this.buildInitScript(json, viewJson)}`);
         this.resolveExpression();
     }
 
@@ -227,7 +269,7 @@ class DataTableView implements IDataTableView {
             }
             columns.push(next);
         }
-        const state: ResultTableView = { name: this.table.name, columns };
+        const state: ResultTableView = { name: this.options?.viewStateName ?? this.table.name, columns };
         if (typeof rawGutterWidth === 'number' && Number.isFinite(rawGutterWidth) && rawGutterWidth >= 40) {
             state.gutterWidth = Math.round(rawGutterWidth);
         }
@@ -556,6 +598,151 @@ class DataTableView implements IDataTableView {
         }
         .datatable-sorter::before { border-top-color: var(--vscode-foreground); }
         .datatable-sorter::after { border-bottom-color: var(--vscode-foreground); }
+        .activity-structured-layout {
+            display: flex;
+            flex: 1;
+            min-width: 0;
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        .activity-tree-pane {
+            display: flex;
+            flex-direction: column;
+            flex: 0 0 340px;
+            min-width: 180px;
+            max-width: none;
+            min-height: 0;
+            overflow: hidden;
+            background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+        }
+        .activity-splitter {
+            position: relative;
+            flex: 0 0 5px;
+            width: 5px;
+            cursor: col-resize;
+            background: var(--vscode-panel-border, #444);
+            outline: none;
+            touch-action: none;
+        }
+        .activity-splitter::after {
+            content: '';
+            position: absolute;
+            inset: 0 -2px;
+        }
+        .activity-splitter:hover,
+        .activity-splitter.dragging,
+        .activity-splitter:focus-visible {
+            background: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007acc));
+        }
+        body.activity-split-resizing {
+            cursor: col-resize !important;
+            user-select: none !important;
+        }
+        .activity-tree-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex: 0 0 auto;
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--vscode-panel-border, #444);
+            color: var(--vscode-sideBarTitle-foreground, var(--vscode-foreground));
+            font-weight: 600;
+        }
+        .activity-tree-deepest {
+            border: 1px solid var(--vscode-button-border, transparent);
+            border-radius: 2px;
+            padding: 2px 6px;
+            color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+            background: var(--vscode-button-secondaryBackground, var(--vscode-toolbar-hoverBackground));
+            font: inherit;
+            font-size: 0.9em;
+            font-weight: 400;
+            cursor: pointer;
+        }
+        .activity-tree-deepest:hover {
+            background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
+        }
+        .activity-tree {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            padding: 4px 0;
+        }
+        .activity-tree-group {
+            margin-left: 14px;
+            padding-left: 4px;
+            border-left: 1px solid var(--vscode-tree-indentGuidesStroke, var(--vscode-panel-border, #555));
+        }
+        .activity-tree-group[hidden] { display: none; }
+        .activity-tree-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            min-width: max-content;
+            box-sizing: border-box;
+            gap: 3px;
+            padding: 3px 8px 3px 4px;
+            border: 0;
+            color: var(--vscode-foreground);
+            background: transparent;
+            font: inherit;
+            text-align: left;
+            cursor: default;
+        }
+        .activity-tree-item:hover {
+            background: var(--vscode-list-hoverBackground, rgba(127, 127, 127, 0.12));
+        }
+        .activity-tree-item.selected {
+            color: var(--vscode-list-activeSelectionForeground, #fff);
+            background: var(--vscode-list-activeSelectionBackground, #094771);
+        }
+        .activity-tree-item:focus-visible {
+            outline: 1px solid var(--vscode-focusBorder, #007acc);
+            outline-offset: -1px;
+        }
+        .activity-tree-disclosure {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 16px;
+            width: 16px;
+            height: 16px;
+            color: var(--vscode-descriptionForeground, currentColor);
+            cursor: pointer;
+        }
+        .activity-tree-item.selected .activity-tree-disclosure { color: currentColor; }
+        .activity-tree-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .activity-tree-id {
+            color: var(--vscode-descriptionForeground, currentColor);
+            font-family: var(--vscode-editor-font-family, monospace);
+            font-size: 0.92em;
+            white-space: nowrap;
+        }
+        .activity-tree-item.selected .activity-tree-id { color: currentColor; opacity: .85; }
+        .activity-tree-count {
+            color: var(--vscode-descriptionForeground, currentColor);
+            white-space: nowrap;
+        }
+        .activity-tree-item.selected .activity-tree-count { color: currentColor; opacity: .85; }
+        .activity-tree-depth {
+            margin-left: auto;
+            padding: 0 4px;
+            border-radius: 8px;
+            color: var(--vscode-badge-foreground, var(--vscode-foreground));
+            background: var(--vscode-badge-background, rgba(127, 127, 127, .3));
+            font-size: .85em;
+            white-space: nowrap;
+        }
+        .activity-tree-warning { color: var(--vscode-editorWarning-foreground, #cca700); }
+        .activity-events-pane {
+            flex: 1 1 auto;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .activity-events-pane > .datatable-wrapper { height: 100%; }
     </style>`;
     }
 
@@ -572,8 +759,28 @@ class DataTableView implements IDataTableView {
         const beforeCreateScript = this.contribution?.beforeCreateScript ?? '';
         const afterCreateScript = this.contribution?.afterCreateScript ?? '';
         const yieldThreshold = this.contribution?.yieldBeforeCreateAtRowCount;
-        const beforeCreateYield = yieldThreshold !== undefined && this.table.rows.length >= yieldThreshold
+        // A structured sibling starts inside display:none. Simple-DataTables
+        // cannot reliably measure or initialize there, so wait for the tab
+        // controller's explicit activation signal instead of polling layout.
+        // Ordinary large grids still yield one visible frame for their
+        // loading treatment before construction.
+        const beforeCreateYield = this.options?.activityTree
             ? `await new Promise(function(resolve) {
+        var viewContainer = container.closest('.view-content');
+        if (!viewContainer || viewContainer.classList.contains('active')) {
+            resolve();
+            return;
+        }
+        viewContainer.addEventListener('kusto-view-activated', resolve, { once: true });
+    });
+    var activityLoadingLabel = container.querySelector('.workbench-grid-loading-status span:last-child');
+    if (activityLoadingLabel) {
+        activityLoadingLabel.textContent = 'Rendering ' + initialRows.length.toLocaleString() +
+            ' event' + (initialRows.length === 1 ? '' : 's') + '…';
+    }
+    await new Promise(function(resolve) { requestAnimationFrame(resolve); });`
+            : yieldThreshold !== undefined && this.table.rows.length >= yieldThreshold
+                ? `await new Promise(function(resolve) {
         function waitForVisibleGrid() {
             if (!container.isConnected) { resolve(); return; }
             if (container.getClientRects().length > 0 &&
@@ -587,7 +794,7 @@ class DataTableView implements IDataTableView {
         }
         requestAnimationFrame(waitForVisibleGrid);
     });`
-            : '';
+                : '';
         return `<script>
 (function() {
     var container = document.currentScript.parentElement;
@@ -608,7 +815,39 @@ class DataTableView implements IDataTableView {
     // always carry the full table even while a sub-range is selected.
     var cachedFullExpression = '';
     var cachedFullHtml = '';
-    var tableData = ${tableDataJson};
+    var embeddedTableData = ${tableDataJson};
+    var sharedTableData = window._kustoExplorerSharedTableData ||
+        (window._kustoExplorerSharedTableData = {});
+    var tableData = embeddedTableData;
+    if (embeddedTableData.sharedDataKey) {
+        if (embeddedTableData.reuseSharedData) {
+            var sharedSource = sharedTableData[embeddedTableData.sharedDataKey];
+            if (!sharedSource) {
+                container.textContent = 'Unable to load the shared result table.';
+                return;
+            }
+            tableData = Object.assign({}, embeddedTableData, {
+                columns: sharedSource.columns,
+                rows: embeddedTableData.sourceRowIndexes.map(function(sourceRowIndex) {
+                    return sharedSource.rows[sourceRowIndex];
+                })
+            });
+        } else {
+            sharedTableData[embeddedTableData.sharedDataKey] = {
+                columns: embeddedTableData.columns,
+                rows: embeddedTableData.rows
+            };
+        }
+    }
+    var expandedActivityIndexes = new Set();
+    var selectedActivityIndex = tableData.activityTree && tableData.activityTree.rows.length
+        ? tableData.activityTree.rows[0].activityIndex
+        : undefined;
+    var activityRows = tableData.activityTree
+        ? tableData.activityTree.activities.map(function() { return []; })
+        : null;
+    var activityFirstProjectionRow = {};
+
     // Saved presentation state to apply on first render. Matches the
     // host-side ResultTableView payload:
     //   { name: string, columns: [{ index, width? }, ...] } | null
@@ -682,20 +921,25 @@ class DataTableView implements IDataTableView {
         })
     );
     var rows = tableData.rows.map(function(row, rowIdx) {
-        var rowNum = String(rowIdx + 1);
+        var sourceRowIndex = tableData.sourceRowIndexes ? tableData.sourceRowIndexes[rowIdx] : rowIdx;
+        var treeRow = tableData.activityTree ? tableData.activityTree.rows[rowIdx] : null;
+        var rowNum = String(sourceRowIndex + 1);
         var cells = [{
             data: rowNum,
             text: rowNum,
+            // Use presentation order for sorting so the third (normal) sort
+            // state restores the activity-tree projection in structured views.
             order: rowIdx,
             // data-gutter marks the row-header cell; data-orig-row lets the
             // selection logic map a display-order tbody row back to its
             // source row after the user sorts/filters.
-            attributes: { 'data-gutter': '1', 'data-orig-row': String(rowIdx) }
+            attributes: { 'data-gutter': '1', 'data-orig-row': String(sourceRowIndex) }
         }];
         row.forEach(function(text, i) {
             // columnSortTypes is indexed by DOM column index, so the data
             // sort type for original column i lives at columnSortTypes[i+1].
             var sortType = columnSortTypes[i + 1];
+            var attributes = { 'data-orig-col': String(i) };
             cells.push({
                 data: text,
                 text: text,
@@ -704,32 +948,361 @@ class DataTableView implements IDataTableView {
                 // later support column reordering — currentSelectionIndices
                 // reads it back so dragged selections always reference the
                 // correct original columns.
-                attributes: { 'data-orig-col': String(i) }
+                attributes: attributes
             });
         });
-        return cells;
+        var normalizedRow = treeRow
+            ? { attributes: { 'data-activity-event-row': '1' }, cells: cells }
+            : cells;
+        if (treeRow && activityRows) {
+            activityRows[treeRow.activityIndex].push(normalizedRow);
+            if (treeRow.firstInActivity) {
+                activityFirstProjectionRow[String(treeRow.activityIndex)] = rowIdx;
+            }
+        }
+        return normalizedRow;
     });
+
+    // The structured grid shows events for exactly one selected activity.
+    // Hierarchy expansion is handled independently by the navigator pane.
+    var initialRows = activityRows && selectedActivityIndex !== undefined
+        ? activityRows[selectedActivityIndex]
+        : rows;
 
     ${beforeCreateScript}
 
     ${beforeCreateYield}
 
-    var grid = new simpleDatatables.DataTable(tableEl, {
-        data: { headings: headings, data: rows },
-        columns: columnSettings,
-        perPage: ${this.pageSize},
-        perPageSelect: ${JSON.stringify(perPageSelect)},
-        searchable: true,
-        sortable: true,
-        paging: tableData.rows.length > ${this.pageSize},
-        labels: {
-            placeholder: 'Search...',
-            noRows: 'No results',
-            info: 'Showing {start} to {end} of {rows} rows'
-        }
-    });
+    var grid;
+    try {
+        grid = new simpleDatatables.DataTable(tableEl, {
+            data: { headings: headings, data: initialRows },
+            columns: columnSettings,
+            perPage: ${this.pageSize},
+            perPageSelect: ${JSON.stringify(perPageSelect)},
+            searchable: true,
+            sortable: true,
+            paging: tableData.rows.length > ${this.pageSize},
+            labels: {
+                placeholder: 'Search...',
+                noRows: 'No results',
+                info: 'Showing {start} to {end} of {rows} rows'
+            }
+        });
+    } catch (error) {
+        console.error('Failed to initialize result grid', error);
+        container.classList.remove('workbench-grid-is-loading');
+        container.removeAttribute('aria-busy');
+        container.replaceChildren();
+        var gridError = document.createElement('div');
+        gridError.setAttribute('role', 'alert');
+        gridError.style.padding = '12px';
+        gridError.textContent = 'Unable to render results: ' +
+            (error && error.message ? error.message : String(error));
+        container.appendChild(gridError);
+        return;
+    }
 
     ${afterCreateScript}
+
+    var activityTreeElement = container.querySelector('.activity-tree');
+    var activityDeepestButton = container.querySelector('.activity-tree-deepest');
+    var activityTreePane = container.querySelector('.activity-tree-pane');
+    var activitySplitter = container.querySelector('.activity-splitter');
+    var activitySplitDrag = null;
+    var activityTreeItems = {};
+    var activityTreeGroups = {};
+    var deepestActivityIndexes = [];
+    var deepestActivityCursor = -1;
+
+    function activitySplitBounds() {
+        var layout = container.querySelector('.activity-structured-layout');
+        var width = layout ? layout.clientWidth : 0;
+        var minimum = 180;
+        var maximum = Math.max(minimum, width - 280);
+        return { layout: layout, minimum: minimum, maximum: maximum };
+    }
+
+    function setActivityTreeWidth(width) {
+        if (!activityTreePane || !activitySplitter) return;
+        var bounds = activitySplitBounds();
+        var clamped = Math.max(bounds.minimum, Math.min(bounds.maximum, Math.round(width)));
+        activityTreePane.style.flexBasis = clamped + 'px';
+        activitySplitter.setAttribute('aria-valuemin', String(bounds.minimum));
+        activitySplitter.setAttribute('aria-valuemax', String(bounds.maximum));
+        activitySplitter.setAttribute('aria-valuenow', String(clamped));
+    }
+
+    function onActivitySplitMouseDown(e) {
+        if (e.button !== 0 || !activitySplitter) return;
+        var bounds = activitySplitBounds();
+        if (!bounds.layout) return;
+        activitySplitter.focus();
+        activitySplitDrag = { left: bounds.layout.getBoundingClientRect().left };
+        activitySplitter.classList.add('dragging');
+        document.body.classList.add('activity-split-resizing');
+        e.preventDefault();
+    }
+
+    function onActivitySplitMouseMove(e) {
+        if (!activitySplitDrag) return;
+        setActivityTreeWidth(e.clientX - activitySplitDrag.left);
+        e.preventDefault();
+    }
+
+    function finishActivitySplitResize() {
+        if (!activitySplitDrag) return;
+        activitySplitDrag = null;
+        if (activitySplitter) activitySplitter.classList.remove('dragging');
+        document.body.classList.remove('activity-split-resizing');
+        try { window.dispatchEvent(new Event('resize')); } catch (_) { /* best effort */ }
+    }
+
+    function onActivitySplitKeyDown(e) {
+        if (!activityTreePane) return;
+        var width = activityTreePane.getBoundingClientRect().width;
+        if (e.key === 'ArrowLeft') setActivityTreeWidth(width - (e.shiftKey ? 80 : 20));
+        else if (e.key === 'ArrowRight') setActivityTreeWidth(width + (e.shiftKey ? 80 : 20));
+        else if (e.key === 'Home') setActivityTreeWidth(activitySplitBounds().minimum);
+        else if (e.key === 'End') setActivityTreeWidth(activitySplitBounds().maximum);
+        else return;
+        e.preventDefault();
+    }
+
+    function resetActivitySplitWidth() {
+        setActivityTreeWidth(340);
+    }
+
+    if (activitySplitter) {
+        activitySplitter.addEventListener('mousedown', onActivitySplitMouseDown);
+        activitySplitter.addEventListener('keydown', onActivitySplitKeyDown);
+        activitySplitter.addEventListener('dblclick', resetActivitySplitWidth);
+        document.addEventListener('mousemove', onActivitySplitMouseMove);
+        document.addEventListener('mouseup', finishActivitySplitResize);
+        setActivityTreeWidth(340);
+    }
+
+    function activityIssueTitle(issue) {
+        return issue === 'orphan'
+            ? 'Parent activity is not present in these results'
+            : issue === 'cycle'
+                ? 'Activity parent cycle was broken here'
+                : issue === 'conflictingParents'
+                    ? 'Activity rows contain conflicting parent ids'
+                    : '';
+    }
+
+    function refreshActivityTreeDecorations() {
+        if (!tableData.activityTree) return;
+        tableData.activityTree.activities.forEach(function(activity, activityIndex) {
+            var item = activityTreeItems[String(activityIndex)];
+            if (!item) return;
+            var selected = activityIndex === selectedActivityIndex;
+            var expanded = expandedActivityIndexes.has(activityIndex);
+            item.classList.toggle('selected', selected);
+            item.setAttribute('aria-selected', selected ? 'true' : 'false');
+            if (activity.childActivityCount > 0) {
+                item.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                var disclosure = item.querySelector('.activity-tree-disclosure');
+                if (disclosure) disclosure.textContent = expanded ? '▼' : '▶';
+                var group = activityTreeGroups[String(activityIndex)];
+                if (group) group.hidden = !expanded;
+            }
+        });
+    }
+
+    function showSelectedActivity(activityIndex, focusTreeItem) {
+        if (!activityRows || !activityRows[activityIndex]) return;
+        selectedActivityIndex = activityIndex;
+        selectedCells.clear();
+        selAnchor = null;
+        postSelectionChange();
+        grid.data.data = activityRows[activityIndex];
+        grid.hasRows = grid.data.data.length > 0;
+        grid._searchQueries = [];
+        grid._searchData = [];
+        grid.update();
+        if (typeof workbenchApplyFilters === 'function') workbenchApplyFilters();
+        refreshActivityTreeDecorations();
+        var item = activityTreeItems[String(activityIndex)];
+        if (focusTreeItem && item) item.focus();
+    }
+
+    function toggleActivityTreeNode(activityIndex, forceExpanded) {
+        if (!tableData.activityTree) return;
+        var activity = tableData.activityTree.activities[activityIndex];
+        if (!activity || activity.childActivityCount === 0) return;
+        var expanded = forceExpanded === undefined
+            ? !expandedActivityIndexes.has(activityIndex)
+            : forceExpanded;
+        if (expanded) expandedActivityIndexes.add(activityIndex);
+        else expandedActivityIndexes.delete(activityIndex);
+        refreshActivityTreeDecorations();
+    }
+
+    function createActivityTreeNode(activityIndex, childrenByParent) {
+        var activity = tableData.activityTree.activities[activityIndex];
+        var projectionRowIndex = activityFirstProjectionRow[String(activityIndex)];
+        var treeRow = tableData.activityTree.rows[projectionRowIndex];
+        var sourceRow = tableData.rows[projectionRowIndex] || [];
+        var markerColumnIndex = tableData.columns.findIndex(function(column) {
+            return String(column.name || '').toLocaleLowerCase() === 'markername';
+        });
+        var marker = markerColumnIndex >= 0 ? String(sourceRow[markerColumnIndex] || '').trim() : '';
+        var wrapper = document.createElement('div');
+        wrapper.className = 'activity-tree-node';
+
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'activity-tree-item';
+        item.setAttribute('role', 'treeitem');
+        item.setAttribute('aria-level', String((treeRow ? treeRow.depth : 0) + 1));
+        item.setAttribute('data-activity-index', String(activityIndex));
+        item.title = activity.activityId + (marker ? ' — ' + marker : '');
+        var issueTitle = activityIssueTitle(treeRow && treeRow.issue);
+        if (issueTitle) item.title += '. ' + issueTitle;
+
+        var disclosure = document.createElement('span');
+        disclosure.className = 'activity-tree-disclosure';
+        disclosure.setAttribute('data-tree-toggle', '1');
+        disclosure.setAttribute('aria-hidden', 'true');
+        disclosure.textContent = activity.childActivityCount > 0 ? '▶' : '•';
+        item.appendChild(disclosure);
+
+        if (issueTitle) {
+            var warning = document.createElement('span');
+            warning.className = 'activity-tree-warning';
+            warning.textContent = '⚠';
+            warning.title = issueTitle;
+            item.appendChild(warning);
+        }
+        if (marker) {
+            var label = document.createElement('span');
+            label.className = 'activity-tree-label';
+            label.textContent = marker;
+            item.appendChild(label);
+        }
+        var id = document.createElement('span');
+        id.className = 'activity-tree-id';
+        id.textContent = activity.activityId;
+        item.appendChild(id);
+        var count = document.createElement('span');
+        count.className = 'activity-tree-count';
+        count.textContent = '(' + (treeRow ? treeRow.eventCount : activityRows[activityIndex].length) + ')';
+        item.appendChild(count);
+        if (activity.maxDescendantDepth > 0) {
+            var depth = document.createElement('span');
+            depth.className = 'activity-tree-depth';
+            depth.textContent = '↓' + activity.maxDescendantDepth;
+            depth.title = activity.maxDescendantDepth + ' level' + (activity.maxDescendantDepth === 1 ? '' : 's')
+                + ' below; ' + activity.subtreeActivityCount + ' activities in this branch';
+            item.appendChild(depth);
+        }
+        wrapper.appendChild(item);
+        activityTreeItems[String(activityIndex)] = item;
+
+        var childIndexes = childrenByParent[String(activityIndex)] || [];
+        if (childIndexes.length) {
+            var group = document.createElement('div');
+            group.className = 'activity-tree-group';
+            group.setAttribute('role', 'group');
+            group.hidden = true;
+            childIndexes.forEach(function(childIndex) {
+                group.appendChild(createActivityTreeNode(childIndex, childrenByParent));
+            });
+            wrapper.appendChild(group);
+            activityTreeGroups[String(activityIndex)] = group;
+        }
+        return wrapper;
+    }
+
+    function buildActivityTree() {
+        if (!tableData.activityTree || !activityTreeElement) return;
+        var childrenByParent = {};
+        var roots = [];
+        tableData.activityTree.activities.forEach(function(activity, activityIndex) {
+            if (activity.parentActivityIndex === undefined) roots.push(activityIndex);
+            else {
+                var key = String(activity.parentActivityIndex);
+                (childrenByParent[key] || (childrenByParent[key] = [])).push(activityIndex);
+            }
+        });
+        roots.forEach(function(rootIndex) {
+            activityTreeElement.appendChild(createActivityTreeNode(rootIndex, childrenByParent));
+        });
+        var maximumDepth = -1;
+        tableData.activityTree.activities.forEach(function(_activity, activityIndex) {
+            var projectionRowIndex = activityFirstProjectionRow[String(activityIndex)];
+            var treeRow = tableData.activityTree.rows[projectionRowIndex];
+            var depth = treeRow ? treeRow.depth : 0;
+            if (depth > maximumDepth) {
+                maximumDepth = depth;
+                deepestActivityIndexes = [activityIndex];
+            } else if (depth === maximumDepth) deepestActivityIndexes.push(activityIndex);
+        });
+        if (activityDeepestButton && maximumDepth > 0) {
+            activityDeepestButton.hidden = false;
+            activityDeepestButton.textContent = 'Deepest · ' + maximumDepth;
+            activityDeepestButton.title = 'Reveal deepest activity (' + deepestActivityIndexes.length + ' at level ' + maximumDepth + ')';
+        }
+        refreshActivityTreeDecorations();
+    }
+
+    function revealNextDeepestActivity() {
+        if (!tableData.activityTree || !deepestActivityIndexes.length) return;
+        deepestActivityCursor = (deepestActivityCursor + 1) % deepestActivityIndexes.length;
+        var activityIndex = deepestActivityIndexes[deepestActivityCursor];
+        var parentIndex = tableData.activityTree.activities[activityIndex].parentActivityIndex;
+        while (parentIndex !== undefined) {
+            expandedActivityIndexes.add(parentIndex);
+            parentIndex = tableData.activityTree.activities[parentIndex].parentActivityIndex;
+        }
+        showSelectedActivity(activityIndex, true);
+        var item = activityTreeItems[String(activityIndex)];
+        if (item && item.scrollIntoView) item.scrollIntoView({ block: 'center' });
+    }
+
+    function onActivityTreeClick(e) {
+        var item = e.target.closest ? e.target.closest('.activity-tree-item') : null;
+        if (!item || !activityTreeElement || !activityTreeElement.contains(item)) return;
+        var activityIndex = parseInt(item.getAttribute('data-activity-index'), 10);
+        if (isNaN(activityIndex)) return;
+        if (e.target.closest('[data-tree-toggle]')) toggleActivityTreeNode(activityIndex);
+        else showSelectedActivity(activityIndex, false);
+    }
+
+    function onActivityTreeDoubleClick(e) {
+        var item = e.target.closest ? e.target.closest('.activity-tree-item') : null;
+        if (!item) return;
+        var activityIndex = parseInt(item.getAttribute('data-activity-index'), 10);
+        if (!isNaN(activityIndex)) toggleActivityTreeNode(activityIndex);
+    }
+
+    function onActivityTreeKeyDown(e) {
+        var item = e.target.closest ? e.target.closest('.activity-tree-item') : null;
+        if (!item) return;
+        var activityIndex = parseInt(item.getAttribute('data-activity-index'), 10);
+        if (isNaN(activityIndex)) return;
+        if (e.key === 'Enter' || e.key === ' ') showSelectedActivity(activityIndex, true);
+        else if (e.key === 'ArrowRight') toggleActivityTreeNode(activityIndex, true);
+        else if (e.key === 'ArrowLeft') {
+            if (expandedActivityIndexes.has(activityIndex)) toggleActivityTreeNode(activityIndex, false);
+            else {
+                var parentIndex = tableData.activityTree.activities[activityIndex].parentActivityIndex;
+                if (parentIndex !== undefined) showSelectedActivity(parentIndex, true);
+            }
+        } else return;
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    if (activityTreeElement) {
+        activityTreeElement.addEventListener('click', onActivityTreeClick);
+        activityTreeElement.addEventListener('dblclick', onActivityTreeDoubleClick);
+        activityTreeElement.addEventListener('keydown', onActivityTreeKeyDown);
+        buildActivityTree();
+    }
+    if (activityDeepestButton) activityDeepestButton.addEventListener('click', revealNextDeepestActivity);
 
     // Clear the cell selection whenever the table is sorted. After a sort
     // the row order changes and the saved selection coordinates would
@@ -763,6 +1336,7 @@ class DataTableView implements IDataTableView {
         try {
             stampOriginalColIndex();
             applyColOrder();
+            refreshActivityTreeDecorations();
             // Simple-DataTables may replace the header cells during a redraw.
             // Their inline widths disappear even though our pinned flag still
             // describes the old DOM. Re-run width restoration on the new
@@ -2047,6 +2621,20 @@ class DataTableView implements IDataTableView {
     // ── Cleanup for re-render ──
     container._dtCleanup = function() {
         if (typeof contributionCleanup === 'function') contributionCleanup();
+        if (activityTreeElement) {
+            activityTreeElement.removeEventListener('click', onActivityTreeClick);
+            activityTreeElement.removeEventListener('dblclick', onActivityTreeDoubleClick);
+            activityTreeElement.removeEventListener('keydown', onActivityTreeKeyDown);
+        }
+        if (activityDeepestButton) activityDeepestButton.removeEventListener('click', revealNextDeepestActivity);
+        if (activitySplitter) {
+            activitySplitter.removeEventListener('mousedown', onActivitySplitMouseDown);
+            activitySplitter.removeEventListener('keydown', onActivitySplitKeyDown);
+            activitySplitter.removeEventListener('dblclick', resetActivitySplitWidth);
+        }
+        document.removeEventListener('mousemove', onActivitySplitMouseMove);
+        document.removeEventListener('mouseup', finishActivitySplitResize);
+        document.body.classList.remove('activity-split-resizing');
         window.removeEventListener('message', onMessage);
         document.removeEventListener('keydown', onKeyDown);
         document.removeEventListener('mousemove', onDocMouseMove);
@@ -2084,7 +2672,7 @@ export class DataTableProvider implements IDataTableProvider {
         this.clipboard = clipboard;
     }
 
-    createView(webview: IWebView, table: ResultTable, view?: ResultTableView): IDataTableView {
+    createView(webview: IWebView, table: ResultTable, view?: ResultTableView, options?: DataTableViewOptions): IDataTableView {
         const contribution = typeof this.contribution === 'function'
             ? this.contribution()
             : this.contribution;
@@ -2092,7 +2680,7 @@ export class DataTableProvider implements IDataTableProvider {
             for (const listener of this.rowSelectionListeners) {
                 try { listener(selection); } catch { /* listeners are best-effort */ }
             }
-        }, contribution);
+        }, contribution, options);
     }
 
     onDidSelectRow(listener: (selection: ResultRowSelection) => void): { dispose(): void } {

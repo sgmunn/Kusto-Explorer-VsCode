@@ -570,7 +570,7 @@ export interface ResultData {
  * (original column order, auto width).
  */
 export interface ResultTableView {
-    /** Name of the `ResultTable` this view applies to. */
+    /** Stable view key: normally the table name, or a derived presentation id. */
     name: string;
     /** Optional pixel width of the generated row-number gutter. */
     gutterWidth?: number;

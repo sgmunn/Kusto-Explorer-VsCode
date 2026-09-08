@@ -7,6 +7,7 @@ import type {
     IDataTableView,
     IDataTableWebviewContribution,
     ResultRowSelection,
+    DataTableViewOptions,
 } from '../dataTableProvider';
 import type { IClipboard } from '../clipboard';
 import type { IServer, ResultTable, ResultTableView } from '../server';
@@ -32,7 +33,10 @@ function createWorkbenchGridContribution(): IDataTableWebviewContribution {
             yieldBeforeCreateAtRowCount: loadingOverlay.yieldBeforeCreateAtRowCount,
         }),
         afterCreateScript:
-            (columnFilters.afterCreateScript ?? '') + (loadingOverlay.afterCreateScript ?? ''),
+            // Remove the blocking treatment as soon as the grid itself exists.
+            // A later enhancement hook must not be able to strand the user
+            // behind the loading overlay if that hook throws.
+            (loadingOverlay.afterCreateScript ?? '') + (columnFilters.afterCreateScript ?? ''),
     };
 }
 
@@ -51,8 +55,10 @@ export class WorkbenchDataTableProvider implements IDataTableProvider {
         this.implementation = implementation ?? new DataTableProvider(server, clipboard, createWorkbenchGridContribution);
     }
 
-    createView(webview: IWebView, table: ResultTable, view?: ResultTableView): IDataTableView {
-        return this.implementation.createView(webview, table, view);
+    createView(webview: IWebView, table: ResultTable, view?: ResultTableView, options?: DataTableViewOptions): IDataTableView {
+        return options === undefined
+            ? this.implementation.createView(webview, table, view)
+            : this.implementation.createView(webview, table, view, options);
     }
 
     onDidSelectRow(listener: (selection: ResultRowSelection) => void): { dispose(): void } {
