@@ -200,6 +200,35 @@ an empty color leaves that level on the current theme's default row styling.
 The row metadata remains attached through sorting, filtering, and paging, and
 the stronger cell-selection color takes precedence during interaction.
 
+### Structured activity display
+
+A table in a `.kqr` document that contains `CurrentActivityId` and
+`ParentActivityId` columns receives an additional **Data - Structured** tab.
+The projection groups every row with the same `CurrentActivityId` into one
+activity while retaining those rows as distinct events. Parent relationships
+form a forest, so multiple roots are supported. Missing activity IDs, parents
+outside the result set, conflicting parents, and cycles are kept visible as
+independent roots rather than being discarded or assigned a relationship that
+the data does not establish. Invalid parent relationships are marked with a
+warning.
+
+The structured tab uses a split layout: an activity tree on the left and the
+standard results grid on the right. Selecting an activity filters the grid to
+that activity's events. The grid retains its usual severity highlighting,
+sorting, filtering, column handling, source-row selection, and Row Details
+synchronization. A draggable sash resizes the panes and also supports keyboard
+resizing.
+
+Tree nodes show their event counts. Branches with descendants also receive a
+depth badge whose tooltip reports the branch's activity count. The **Deepest**
+action reveals and selects a deepest activity, expanding its parent chain;
+repeated use cycles among activities tied at that depth.
+
+The ordinary and structured grids save column order and widths independently.
+For large results, the structured grid initializes only when its tab is first
+activated and reuses the ordinary grid's serialized row data, avoiding a
+second copy of the complete table in the document webview.
+
 ## Guiding principles
 
 - Keep query source and returned data faithful; formatting is a client display
