@@ -49,6 +49,7 @@ suite('History Integration Tests', () => {
         assert.ok(commands.includes('msKustoExplorer.revealHistoryItemInFinder'));
         assert.ok(commands.includes('msKustoExplorer.revealHistoryItemInExplorer'));
         assert.ok(commands.includes('msKustoExplorer.revealHistoryItemInFileManager'));
+        assert.ok(commands.includes('msKustoExplorer.copyHistoryItemToWorkspace'));
     });
 
     test('Adding a history entry creates a retrievable entry', async () => {

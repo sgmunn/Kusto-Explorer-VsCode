@@ -333,6 +333,11 @@
         "title": "Open Containing Folder"
       },
       {
+        "command": "msKustoExplorer.copyHistoryItemToWorkspace",
+        "title": "Copy to Workspace Folder",
+        "icon": "$(copy)"
+      },
+      {
         "command": "msKustoExplorer.deleteHistoryItem",
         "title": "Delete",
         "icon": "$(trash)"
@@ -557,6 +562,11 @@
           "command": "msKustoExplorer.deleteHistoryItem",
           "when": "view == msKustoExplorer_history && viewItem == historyItem",
           "group": "inline"
+        },
+        {
+          "command": "msKustoExplorer.copyHistoryItemToWorkspace",
+          "when": "view == msKustoExplorer_history && viewItem == historyItem && workspaceFolderCount != 0",
+          "group": "7_workspace"
         },
         {
           "command": "msKustoExplorer.revealHistoryItemInFinder",

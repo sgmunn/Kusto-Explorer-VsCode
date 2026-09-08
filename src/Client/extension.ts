@@ -221,6 +221,7 @@ export async function activate(context: ExtensionContext)
         vscode.commands.registerCommand('msKustoExplorer.revealHistoryItemInFinder', (item) => historyPanel.revealHistoryItem(item)),
         vscode.commands.registerCommand('msKustoExplorer.revealHistoryItemInExplorer', (item) => historyPanel.revealHistoryItem(item)),
         vscode.commands.registerCommand('msKustoExplorer.revealHistoryItemInFileManager', (item) => historyPanel.revealHistoryItem(item)),
+        vscode.commands.registerCommand('msKustoExplorer.copyHistoryItemToWorkspace', (item) => historyPanel.copyHistoryItemToWorkspace(item)),
         vscode.commands.registerCommand('msKustoExplorer.deleteHistoryItem', (item) => historyPanel.deleteHistoryItem(item)),
         vscode.commands.registerCommand('msKustoExplorer.clearHistory', () => historyPanel.clearHistory()),
     );

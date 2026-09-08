@@ -82,6 +82,43 @@ export class HistoryPanel {
         await vscode.commands.executeCommand('revealFileInOS', uri);
     }
 
+    /** Copies a history entry's backing .kqr file into the current workspace folder. */
+    async copyHistoryItemToWorkspace(item: { meta: HistoryEntry }): Promise<void> {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders?.length) {
+            void vscode.window.showInformationMessage('Open a workspace folder before copying a history result.');
+            return;
+        }
+
+        const activeUri = vscode.window.activeTextEditor?.document.uri;
+        const workspaceFolder = (activeUri && vscode.workspace.getWorkspaceFolder(activeUri)) ?? folders[0]!;
+        const source = this.manager.getHistoryFileUri(item.meta.fileName);
+        const destination = await this.findAvailableWorkspaceUri(workspaceFolder.uri, item.meta.fileName);
+
+        try {
+            await vscode.workspace.fs.copy(source, destination, { overwrite: false });
+            void vscode.window.showInformationMessage(`Copied ${destination.path.split('/').pop()} to ${workspaceFolder.name}.`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            void vscode.window.showErrorMessage(`Failed to copy history result to the workspace: ${message}`);
+        }
+    }
+
+    private async findAvailableWorkspaceUri(folderUri: vscode.Uri, fileName: string): Promise<vscode.Uri> {
+        const extensionIndex = fileName.toLocaleLowerCase().endsWith('.kqr') ? fileName.length - 4 : fileName.length;
+        const stem = fileName.slice(0, extensionIndex);
+        const extension = fileName.slice(extensionIndex);
+        for (let copyNumber = 1; ; copyNumber++) {
+            const candidate = copyNumber === 1 ? fileName : `${stem} (${copyNumber})${extension}`;
+            const uri = vscode.Uri.joinPath(folderUri, candidate);
+            try {
+                await vscode.workspace.fs.stat(uri);
+            } catch {
+                return uri;
+            }
+        }
+    }
+
     /** Deletes a history item after confirmation. */
     async deleteHistoryItem(item: { meta: HistoryEntry }): Promise<void> {
         await this.manager.deleteEntry(item.meta.fileName);
