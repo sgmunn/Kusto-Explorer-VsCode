@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
+using System.Data;
+using System.Reflection;
+using Kusto.Data.Common;
 using Kusto.Vscode;
 
 namespace Tests.Features;
@@ -8,6 +11,27 @@ namespace Tests.Features;
 [TestClass]
 public class QueryCancellationTests
 {
+    [TestMethod]
+    public async Task RunningQuery_ReceivesCancellationAndPropagatesIt()
+    {
+        var manager = new ConnectionManager();
+        var connection = manager.GetOrAddConnection("https://cancel-test.kusto.windows.net/testdb");
+        using var provider = DispatchProxy.Create<ICslQueryProvider, PendingQueryProvider>();
+        var pending = (PendingQueryProvider)(object)provider;
+        var providerField = connection.GetType().GetField("_primaryQueryProvider", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(providerField);
+        providerField.SetValue(connection, provider);
+        using var cancellation = new CancellationTokenSource();
+
+        var run = connection.ExecuteAsync("print 1", cancellationToken: cancellation.Token);
+        Assert.AreEqual(cancellation.Token, pending.Token, "The SDK query must receive the caller's token.");
+        Assert.IsFalse(run.IsCompleted);
+        cancellation.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => run);
+        Assert.AreEqual(1, pending.CallCount, "Cancellation must not retry the query.");
+    }
+
     [TestMethod]
     [DataRow("print 1")]
     [DataRow(".show version")]
@@ -46,6 +70,31 @@ public class QueryCancellationTests
         {
             CallCount++;
             throw new InvalidOperationException("A cancelled query must not start authentication.");
+        }
+    }
+
+    public class PendingQueryProvider : DispatchProxy
+    {
+        public CancellationToken Token { get; private set; }
+        public int CallCount { get; private set; }
+        private CancellationTokenRegistration registration;
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name == nameof(IDisposable.Dispose))
+            {
+                registration.Dispose();
+                return null;
+            }
+            if (targetMethod?.Name != nameof(ICslQueryProvider.ExecuteQueryAsync))
+            {
+                throw new InvalidOperationException($"Unexpected SDK call: {targetMethod?.Name}");
+            }
+            CallCount++;
+            Token = args!.OfType<CancellationToken>().Single();
+            var completion = new TaskCompletionSource<IDataReader>(TaskCreationOptions.RunContinuationsAsynchronously);
+            registration = Token.Register(() => completion.TrySetCanceled(Token));
+            return completion.Task;
         }
     }
 }
