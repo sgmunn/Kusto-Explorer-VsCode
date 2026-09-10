@@ -8,7 +8,7 @@ Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases a
 
 - **Query editor** — IntelliSense, formatting, go-to-definition, find references, code actions and quick fixes
 - **Results views** — use an ephemeral bottom panel or independent History-backed tabs that remain safe when queries run concurrently
-- **Charts** — create and customize charts from query results; copy as image or save as `.kqr` files
+- **Charts** — create and customize charts from query results; copy as image or save as `.ktt` files
 - **Database explorer** — browse clusters, databases, tables, functions and more
 - **Copilot integration** — ask Copilot to help create, run and diagnose your queries
 - **Scratch pads** — jot down queries without creating files
@@ -24,7 +24,7 @@ Or use the VS Code command line:
 code --install-extension /path/to/kustotracetools-1.0.1.vsix
 ```
 
-KustoTraceTools is a separate local extension (`local.kustotracetools`). It has its own connections, history, scratch pads, and `kustoTraceTools.*` settings; existing Kusto Explorer data is not migrated automatically. Disable the original Kusto Explorer extension while using KustoTraceTools to avoid duplicate KQL language features and overlapping keyboard shortcuts. Existing `.kql` and `.kqr` files remain supported.
+KustoTraceTools is a separate local extension (`local.kustotracetools`). It has its own connections, history, scratch pads, and `kustoTraceTools.*` settings; existing Kusto Explorer data is not migrated automatically. Disable the original Kusto Explorer extension while using KustoTraceTools to avoid duplicate KQL language features and overlapping keyboard shortcuts. Queries retain `.kql`; new saved results use `.ktt`. Legacy `.kqr` results can still be opened.
 
 This is a locally maintained fork of [Microsoft's Kusto Explorer for VS Code](https://github.com/microsoft/Kusto-Explorer-VsCode), not a Microsoft-published release. The `local` publisher identifies the local package; this build is not available from the Marketplace.
 

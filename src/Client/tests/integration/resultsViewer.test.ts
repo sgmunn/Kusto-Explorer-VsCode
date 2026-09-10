@@ -64,7 +64,7 @@ suite('Results Viewer Integration Tests', () => {
         // Close all editors
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 
-        // Clean up any .kqr files we created
+        // Clean up any .ktt files we created
         for (const uri of createdFiles) {
             try {
                 await vscode.workspace.fs.delete(uri);
@@ -163,13 +163,13 @@ suite('Results Viewer Integration Tests', () => {
         assert.strictEqual(resultsViewer.hasSingletonView(), true, 'Singleton view should exist');
     });
 
-    test('Save panel results creates and opens a .kqr file', async () => {
+    test('Save panel results creates and opens a .ktt file', async () => {
         const data = makeResultData();
         await resultsViewer.displayResultsInBottomPanel(data, 'data');
 
         // Determine save path
         const testWorkspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
-        const saveUri = vscode.Uri.file(path.join(testWorkspace, 'test-results.kqr'));
+        const saveUri = vscode.Uri.file(path.join(testWorkspace, 'test-results.ktt'));
         createdFiles.push(saveUri);
 
         // Stub showSaveDialog to return our test path
@@ -181,7 +181,7 @@ suite('Results Viewer Integration Tests', () => {
             (vscode.window as any).showSaveDialog = originalSaveDialog;
         }
 
-        // Verify .kqr file was created on disk
+        // Verify .ktt file was created on disk
         const stat = await vscode.workspace.fs.stat(saveUri);
         assert.ok(stat.size > 0, 'File should have content');
 
@@ -200,7 +200,7 @@ suite('Results Viewer Integration Tests', () => {
             }
             return false;
         });
-        assert.ok(tab, '.kqr file should be open as a tab');
+        assert.ok(tab, '.ktt file should be open as a tab');
     });
 
     test('Chart from bottom panel opens singleton beside', async () => {
@@ -253,13 +253,13 @@ suite('Results Viewer Integration Tests', () => {
         );
     });
 
-    test('Save singleton results creates and opens a .kqr file', async () => {
+    test('Save singleton results creates and opens a .ktt file', async () => {
         const data = makeResultData();
         await resultsViewer.displayResultsInSingletonView(data, 'data');
         assert.strictEqual(resultsViewer.hasSingletonView(), true);
 
         const testWorkspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
-        const saveUri = vscode.Uri.file(path.join(testWorkspace, 'singleton-results.kqr'));
+        const saveUri = vscode.Uri.file(path.join(testWorkspace, 'singleton-results.ktt'));
         createdFiles.push(saveUri);
 
         const originalSaveDialog = vscode.window.showSaveDialog;
@@ -285,6 +285,6 @@ suite('Results Viewer Integration Tests', () => {
             }
             return false;
         });
-        assert.ok(tab, '.kqr file should be open as a tab');
+        assert.ok(tab, '.ktt file should be open as a tab');
     });
 });

@@ -52,24 +52,24 @@ KustoTraceTools is a locally maintained fork of Microsoft's Kusto Explorer for V
 
 - Browse previously executed queries and their results
 - Re-open past results without re-running the query
-- Reveal a result's backing `.kqr` file in Finder, File Explorer, or the Linux file manager from its context menu
+- Reveal a result's backing `.ktt` file in Finder, File Explorer, or the Linux file manager from its context menu
 
 ### Results Panel (bottom panel)
 
 - Copy cell contents or entire tables to the clipboard
 - Drag and drop a table into your document as a KQL `datatable` expression
 - Add or edit a chart to visualize your results
-- Save data as a `.kqr` file (Kusto Query Results) to share with others
+- Save data as a `.ktt` file (KustoTraceTools Results) to share with others
 
 ### Charts (document tab)
 
 - Create and customize charts — choose chart type, axes, legend, and more
 - Copy the chart as an image (light-mode or dark-mode) to the clipboard
-- Save chart and data together as a `.kqr` file
+- Save chart and data together as a `.ktt` file
 
 ### Results Viewer (document tab)
 
-- Open saved `.kqr` files — chart, data, and query in a single view
+- Open saved `.ktt` files and legacy `.kqr` files — chart, data, and query in a single view
 - Add or edit charts, copy data, and export images just like the Results panel
 - Tables containing `CurrentActivityId` and `ParentActivityId` gain a **Data - Structured** split view: a multi-root activity tree on the left and the standard event grid on the right, filtered to the selected activity
 - When results are configured for **Beside** or **Main**, each completed query opens in its own History-backed result tab by default

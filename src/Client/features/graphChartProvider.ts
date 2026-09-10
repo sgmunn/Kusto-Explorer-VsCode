@@ -603,7 +603,7 @@ export class GraphChartProvider implements IChartProvider {
             return;
         }
         // Post node positions back to the host so they can be persisted
-        // across re-renders (and saved into the .kqr file). Uses the
+        // across re-renders (and saved into the .ktt file). Uses the
         // page-level _vscodeApi handle established by the host harness.
         var renderToken = ${token};
         var layoutSeed = (${layoutSeed} >>> 0);

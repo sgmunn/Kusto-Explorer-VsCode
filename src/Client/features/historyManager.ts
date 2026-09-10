@@ -23,7 +23,7 @@ const INDEX_FILE = 'history-index.json';
 
 /** Lightweight metadata for a history entry (stored in the index file). */
 export interface HistoryEntry {
-    /** Filename of the .kqr file in the history directory. */
+    /** Filename of the .ktt file in the history directory. */
     fileName: string;
     /** ISO 8601 timestamp of when the query was executed. */
     timestamp: string;
@@ -222,7 +222,7 @@ export class HistoryManager {
     }
 
     /**
-     * Adds a query result to the history. Writes a .kqr file and prepends
+     * Adds a query result to the history. Writes a .ktt file and prepends
      * the entry to the index. Returns the URI of the new history file.
      */
     async addHistoryEntry(resultData: server.ResultData): Promise<vscode.Uri> {
@@ -250,7 +250,7 @@ export class HistoryManager {
         const runDiscriminator = (resultData.clientRequestId?.split(';').pop() ?? randomUUID())
             .replace(/[^a-zA-Z0-9_-]/g, '_')
             .slice(0, 36);
-        const fileName = `${datePart}_${runDiscriminator}_${safeName}.kqr`;
+        const fileName = `${datePart}_${runDiscriminator}_${safeName}.ktt`;
 
         const filePath = path.join(this.historyDir, fileName);
         const content = JSON.stringify(resultData, null, 2);
@@ -294,7 +294,7 @@ export class HistoryManager {
         return vscode.Uri.file(filePath);
     }
 
-    /** Reads the ResultData from a history .kqr file. */
+    /** Reads the ResultData from a history .ktt file. */
     async readHistoryFile(uri: vscode.Uri): Promise<server.ResultData | undefined> {
         try {
             const content = await fs.promises.readFile(uri.fsPath, 'utf-8');
@@ -304,7 +304,7 @@ export class HistoryManager {
         }
     }
 
-    /** Writes updated ResultData back to a history .kqr file. */
+    /** Writes updated ResultData back to a history .ktt file. */
     async writeHistoryFile(uri: vscode.Uri, data: server.ResultData): Promise<void> {
         const content = JSON.stringify(data, null, 2);
         await fs.promises.writeFile(uri.fsPath, content, 'utf-8');

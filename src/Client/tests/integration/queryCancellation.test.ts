@@ -138,7 +138,7 @@ suite('Query Cancellation Integration Tests', () => {
     });
 
     test('cancelling Results Rerun preserves its document and suppresses late data', async () => {
-        const uri = vscode.Uri.file(path.join(os.tmpdir(), `cancellation-rerun-${Date.now()}.kqr`));
+        const uri = vscode.Uri.file(path.join(os.tmpdir(), `cancellation-rerun-${Date.now()}.ktt`));
         const originalContent = JSON.stringify(result('original result').data, null, 2);
         await vscode.workspace.fs.writeFile(uri, Buffer.from(originalContent));
         const document = await vscode.workspace.openTextDocument(uri);

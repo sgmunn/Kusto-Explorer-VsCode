@@ -76,13 +76,13 @@ export class HistoryPanel {
         await this.resultsViewer.displayHistoryResults(resultData, uri);
     }
 
-    /** Reveals a history entry's backing .kqr file in the native file manager. */
+    /** Reveals a history entry's backing .ktt file in the native file manager. */
     async revealHistoryItem(item: { meta: HistoryEntry }): Promise<void> {
         const uri = this.manager.getHistoryFileUri(item.meta.fileName);
         await vscode.commands.executeCommand('revealFileInOS', uri);
     }
 
-    /** Copies a history entry's backing .kqr file into the current workspace folder. */
+    /** Copies a history entry's backing .ktt file into the current workspace folder. */
     async copyHistoryItemToWorkspace(item: { meta: HistoryEntry }): Promise<void> {
         const folders = vscode.workspace.workspaceFolders;
         if (!folders?.length) {
@@ -105,7 +105,7 @@ export class HistoryPanel {
     }
 
     private async findAvailableWorkspaceUri(folderUri: vscode.Uri, fileName: string): Promise<vscode.Uri> {
-        const extensionIndex = fileName.toLocaleLowerCase().endsWith('.kqr') ? fileName.length - 4 : fileName.length;
+        const extensionIndex = /\.(?:ktt|kqr)$/i.test(fileName) ? fileName.length - 4 : fileName.length;
         const stem = fileName.slice(0, extensionIndex);
         const extension = fileName.slice(extensionIndex);
         for (let copyNumber = 1; ; copyNumber++) {

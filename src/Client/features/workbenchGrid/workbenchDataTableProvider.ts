@@ -44,7 +44,7 @@ function createWorkbenchGridContribution(): IDataTableWebviewContribution {
  * Fork-owned boundary for results-grid development.
  *
  * ResultsViewer depends only on IDataTableProvider, so both live query results
- * and .kqr documents flow through this class. During the parity phase it
+ * and .ktt documents flow through this class. During the parity phase it
  * delegates to the upstream grid. The delegate can be replaced incrementally
  * without changing result orchestration or its callers.
  */

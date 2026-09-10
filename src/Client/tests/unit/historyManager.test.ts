@@ -114,12 +114,24 @@ describe('HistoryManager', () => {
         });
     });
 
+    it('reads indexed legacy .kqr files alongside new .ktt history', async () => {
+        createManager();
+        const [legacy] = seedHistoryEntries(1);
+        const legacyData = makeResultData('legacy query');
+        fs.writeFileSync(path.join(historyDir, legacy!.fileName), JSON.stringify(legacyData));
+        const manager = createManager();
+        const current = await manager.addHistoryEntry(makeResultData('new query'));
+        expect(current.fsPath).toMatch(/\.ktt$/);
+        expect(manager.getEntries().map(entry => entry.fileName)).toContain(legacy!.fileName);
+        expect(await manager.readHistoryFile(manager.getHistoryFileUri(legacy!.fileName))).toEqual(legacyData);
+    });
+
     describe('addHistoryEntry', () => {
-        it('creates a .kqr file on disk', async () => {
+        it('creates a .ktt file on disk', async () => {
             const mgr = createManager();
             await mgr.addHistoryEntry(makeResultData('StormEvents | take 10'));
 
-            const files = fs.readdirSync(historyDir).filter(f => f.endsWith('.kqr'));
+            const files = fs.readdirSync(historyDir).filter(f => f.endsWith('.ktt'));
             expect(files).toHaveLength(1);
         });
 
@@ -185,7 +197,7 @@ describe('HistoryManager', () => {
             const mgr = createManager();
             await mgr.addHistoryEntry(makeResultData('select * from "table" | where x > 0'));
 
-            const files = fs.readdirSync(historyDir).filter(f => f.endsWith('.kqr'));
+            const files = fs.readdirSync(historyDir).filter(f => f.endsWith('.ktt'));
             expect(files).toHaveLength(1);
             // Should not contain characters invalid in filenames
             expect(files[0]).not.toMatch(/[<>:"/\\|?*]/);
@@ -216,13 +228,13 @@ describe('HistoryManager', () => {
 
             // Oldest entry's file should be deleted
             expect(fs.existsSync(path.join(historyDir, oldestEntry.fileName))).toBe(false);
-            const kqrFiles = fs.readdirSync(historyDir).filter(f => f.endsWith('.kqr'));
-            expect(kqrFiles).toHaveLength(200);
+            const resultFiles = fs.readdirSync(historyDir).filter(f => /\.(?:ktt|kqr)$/.test(f));
+            expect(resultFiles).toHaveLength(200);
         });
     });
 
     describe('readHistoryFile', () => {
-        it('reads result data back from a .kqr file', async () => {
+        it('reads result data back from a .ktt file', async () => {
             const mgr = createManager();
             const data = makeResultData('test query', 3);
             const uri = await mgr.addHistoryEntry(data);
@@ -235,7 +247,7 @@ describe('HistoryManager', () => {
 
         it('returns undefined for missing file', async () => {
             const mgr = createManager();
-            const fakeUri = { fsPath: path.join(historyDir, 'nonexistent.kqr') } as vscode.Uri;
+            const fakeUri = { fsPath: path.join(historyDir, 'nonexistent.ktt') } as vscode.Uri;
             expect(await mgr.readHistoryFile(fakeUri)).toBeUndefined();
         });
     });
@@ -287,7 +299,7 @@ describe('HistoryManager', () => {
             await mgr.addHistoryEntry(makeResultData('q1'));
 
             // Should not throw
-            await mgr.deleteEntry('nonexistent.kqr');
+            await mgr.deleteEntry('nonexistent.ktt');
         });
     });
 
@@ -301,8 +313,8 @@ describe('HistoryManager', () => {
             await mgr.clearAllEntries();
 
             expect(mgr.getEntries()).toEqual([]);
-            const kqrFiles = fs.readdirSync(historyDir).filter(f => f.endsWith('.kqr'));
-            expect(kqrFiles).toHaveLength(0);
+            const resultFiles = fs.readdirSync(historyDir).filter(f => /\.(?:ktt|kqr)$/.test(f));
+            expect(resultFiles).toHaveLength(0);
         });
     });
 

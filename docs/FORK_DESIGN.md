@@ -124,7 +124,7 @@ continues to use the extension's normal connection and user-initiated run flow.
 
 The grid is expected to evolve substantially in this fork, but that work should
 not spread through the upstream results lifecycle. Live query results, history
-items, and `.kqr` documents should all continue to use `ResultsViewer` for
+items, and `.ktt` documents should all continue to use `ResultsViewer` for
 their tabs, charts, query text, persistence, and command routing.
 
 The replacement boundary is `IDataTableProvider`. Every results surface already
@@ -133,7 +133,7 @@ can supply a fork-owned implementation without teaching each caller about the
 new grid.
 
 ```text
-ResultData or .kqr
+ResultData or .ktt
         |
   ResultsViewer                 upstream orchestration
         |
@@ -148,7 +148,7 @@ the rest of the extension:
 - Create a grid from a `ResultTable` and optional saved `ResultTableView`.
 - Report selected source-row indexes for the Row Details inspector.
 - Support the existing copy, search, and drag/export commands.
-- Report column order and widths so presentation state can persist in `.kqr`.
+- Report column order and widths so presentation state can persist in `.ktt`.
 - Release webview handlers when a result view is replaced or closed.
 
 Migration should be incremental. The first step redirects construction to
@@ -162,7 +162,7 @@ folder.
 The new grid should begin with behavioral parity: virtualized rows, sorting,
 search, selection, column resize/reorder, copy formats, Row Details events, and
 saved view state. New capabilities can then be added without changing
-`ResultsViewer` or introducing a separate `.kqr` rendering path.
+`ResultsViewer` or introducing a separate `.ktt` rendering path.
 
 ### Column filters
 
@@ -177,7 +177,7 @@ Column filters combine with the existing global search and are evaluated over
 the complete result table already loaded into the webview, before pagination.
 They therefore do not fetch additional rows, rerun the query, or alter the KQL.
 Filter state is intentionally transient: it lasts for the open grid view but is
-not currently persisted in `.kqr` files. The implementation lives in
+not currently persisted in `.ktt` files. The implementation lives in
 `features/workbenchGrid`; the legacy grid exposes only a small optional webview
 contribution hook so upstream grid changes remain straightforward to merge.
 
@@ -202,7 +202,7 @@ the stronger cell-selection color takes precedence during interaction.
 
 ### Structured activity display
 
-A table in a `.kqr` document that contains `CurrentActivityId` and
+A table in a `.ktt` document that contains `CurrentActivityId` and
 `ParentActivityId` columns receives an additional **Data - Structured** tab.
 The projection groups every row with the same `CurrentActivityId` into one
 activity while retaining those rows as distinct events. Parent relationships

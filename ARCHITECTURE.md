@@ -31,7 +31,7 @@ experience where it makes sense, and treat the desktop app as the reference poin
 **The relationship isn't one-way, though** — some capabilities are *new to the extension* and have no
 desktop Kusto Explorer equivalent:
 
-- **Saving results as `.kqr` files** — a result set can be saved to a shareable file that can be
+- **Saving results as `.ktt` files** — a result set can be saved to a shareable file that can be
   reopened and viewed later, independent of re-running the query.
 - **The chart editor** — an interactive UI for customizing a chart (type, axes, series, title, etc.)
   rather than being limited to whatever the query specified.
@@ -193,7 +193,7 @@ Features are grouped by responsibility. Key ones:
 | **Connections** | `connectionManager.ts`, `connectionsPanel.ts`, `connectionStatusBar.ts`, `authentication.ts` | Persist clusters/groups (in `globalState`) and per-document cluster/database assignments (in `workspaceState`); render the Connections tree; show the active connection in the status bar; acquire AAD tokens. |
 | **Query editing** | `queryEditor.ts`, `markdown.ts` | Run/format/copy queries; CodeLens-driven selection; paste transforms; document schema refresh. |
 | **Results** | `resultsViewer.ts`, `dataTableProvider.ts`, `activityTree.ts`, `webview.ts`, `html.ts`, `tsv.ts` | Display query results in webviews; tabular and activity-structured grids (`simple-datatables`); copy/export; drag-and-drop as `datatable` expressions. |
-| **Charts** | `chartProvider.ts`, `compositeChartProvider.ts`, `chartEditorProvider.ts`, `plotlyChartProvider.ts`, `graphChartProvider.ts`, `timePivotChartProvider.ts` | Render and edit charts from results; save as `.kqr`; copy as image. |
+| **Charts** | `chartProvider.ts`, `compositeChartProvider.ts`, `chartEditorProvider.ts`, `plotlyChartProvider.ts`, `graphChartProvider.ts`, `timePivotChartProvider.ts` | Render and edit charts from results; save as `.ktt`; copy as image. |
 | **Scratch pads** | `scratchPadManager.ts`, `scratchPadPanel.ts` | In-memory `.kql` documents (custom `kustoTraceTools-scratch:` scheme) that need no file on disk. |
 | **History** | `historyManager.ts`, `historyPanel.ts` | Record executed queries + results and let users revisit them. |
 | **Entities** | `entityDefinitionProvider.ts` | Virtual read-only documents (`kustotracetools-entity:` scheme) showing an entity's `CREATE` statement for go-to-definition. |
@@ -214,7 +214,7 @@ halves carry the presentation. New features should preserve this split so the lo
 its real job is to generate the HTML that plugs into the webview. It *does* know the three broad kinds
 of result content — **tabular results** (`dataTableProvider.ts`), **chart results** (the chart
 providers), and **the query itself** (just text) — and it manages the **tabs** that combine them
-(most visible when results are saved to and reopened from `.kqr` files). For each kind it delegates the
+(most visible when results are saved to and reopened from `.ktt` files). For each kind it delegates the
 visually distinct portion to a **provider** that renders its own subset of HTML into a separate
 `<div>`. Charts go further: the chart surface has *multiple* provider implementations behind a single
 `IChartProvider` seam —
@@ -233,7 +233,7 @@ types and makes each provider independently testable/replaceable.
 lets the user customize many facets of a chart. Today the results viewer assumes **one chart per
 result**, but that is a current limitation rather than a hard constraint — there is really no limit, and
 it can be extended to allow multiple charts, each shown in its own tab exactly like multiple result
-tables. The `.kqr` save format already supports specifying multiple charts.
+tables. The `.ktt` save format already supports specifying multiple charts.
 
 The same content kinds also drive the two docked panels: the **results panel** at the bottom typically
 shows only tabular data and the **chart panel** typically shows only charts, but both are configurable
@@ -309,7 +309,7 @@ sequenceDiagram
     QM-->>LS: RunResult
     LS-->>S: RunQueryResult (ResultData + charts)
     S-->>UI: typed result + client request id
-    UI->>UI: persist unique History .kqr
+    UI->>UI: persist unique History .ktt
     UI->>UI: open run-owned result document
 ```
 
@@ -317,7 +317,7 @@ sequenceDiagram
 
 Query execution is intentionally concurrent: each invocation has its own client request ID and
 server request. Result presentation follows the same ownership boundary. Every successful run is
-first written to a uniquely named History `.kqr`; editor-hosted results then open that URI as a
+first written to a uniquely named History `.ktt`; editor-hosted results then open that URI as a
 custom-editor document. The document URI owns its webview, grids, charts, and write-back queue, so
 overlapping completions cannot redirect one run's presentation changes into another run's file.
 

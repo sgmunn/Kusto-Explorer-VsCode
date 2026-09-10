@@ -104,6 +104,9 @@
         "displayName": "KustoTraceTools Results",
         "selector": [
           {
+            "filenamePattern": "*.ktt"
+          },
+          {
             "filenamePattern": "*.kqr"
           }
         ],
@@ -1619,7 +1622,7 @@
               "reuse"
             ],
             "default": "newTab",
-            "markdownDescription": "How editor-hosted query results are owned.\n- `newTab`: Open each completed run in its own History-backed `.kqr` document tab. This is safe for concurrent runs.\n- `reuse`: Reuse the legacy singleton result editor. Concurrent completions replace the shared view.\n\nThis setting applies to `beside` and `main` result destinations and to charts displayed outside the bottom panel."
+            "markdownDescription": "How editor-hosted query results are owned.\n- `newTab`: Open each completed run in its own History-backed `.ktt` document tab. This is safe for concurrent runs.\n- `reuse`: Reuse the legacy singleton result editor. Concurrent completions replace the shared view.\n\nThis setting applies to `beside` and `main` result destinations and to charts displayed outside the bottom panel."
           },
           "kustoTraceTools.results.chartDisplay": {
             "type": "string",

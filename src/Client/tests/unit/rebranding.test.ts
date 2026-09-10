@@ -40,7 +40,7 @@ describe('KustoTraceTools extension identity', () => {
         expect(manifest.contributes.languages[0]).toMatchObject({ id: 'kusto', extensions: ['.kql', '.csl', '.kusto'] });
         expect(manifest.contributes.grammars[0].language).toBe('kusto');
         expect(manifest.contributes.customEditors[0]).toMatchObject({
-            viewType: 'kustoTraceTools_resultViewer', selector: [{ filenamePattern: '*.kqr' }],
+            viewType: 'kustoTraceTools_resultViewer', selector: [{ filenamePattern: '*.ktt' }, { filenamePattern: '*.kqr' }],
         });
         expect(manifest.activationEvents).toContain('onFileSystem:kustoTraceTools-scratch');
         const server = readFileSync(new URL('../../../Server/Server.cs', import.meta.url), 'utf8');

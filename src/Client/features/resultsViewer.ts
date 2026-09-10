@@ -264,25 +264,25 @@ function injectMessageHandlerScripts(html: string): string {
 }
 
 /**
- * Saves result data to a .kqr file.
+ * Saves result data to a .ktt file.
  * Returns the saved URI, or undefined if cancelled or failed.
  */
 async function saveResults(source: { data: server.ResultData }): Promise<{ uri: vscode.Uri; alreadyOpen: boolean } | undefined> {
     const resultData = source.data;
 
     const saveUri = await vscode.window.showSaveDialog({
-        filters: { 'Kusto Query Results': ['kqr'] },
-        defaultUri: vscode.Uri.file('results.kqr')
+        filters: { 'KustoTraceTools Results': ['ktt'], 'Legacy Kusto Query Results': ['kqr'] },
+        defaultUri: vscode.Uri.file('results.ktt')
     });
 
     if (!saveUri) {
         return undefined;
     }
 
-    // Ensure the file has the .kqr extension
-    const finalUri = saveUri.path.endsWith('.kqr')
+    // Default to .ktt while allowing an explicitly selected legacy .kqr filename.
+    const finalUri = /\.(?:ktt|kqr)$/i.test(saveUri.path)
         ? saveUri
-        : saveUri.with({ path: saveUri.path + '.kqr' });
+        : saveUri.with({ path: saveUri.path + '.ktt' });
 
     const content = JSON.stringify(resultData, null, 2);
 
@@ -364,7 +364,7 @@ function chartViewKeyMatches(a: { name?: string; tableName?: string }, b: { name
 
 /**
  * Writes the current `resultData` JSON back into the backing text document
- * and saves it. .kqr documents are not user-authored — there is no UI
+ * and saves it. .ktt documents are not user-authored — there is no UI
  * affordance for "dirty" on the bottom results panel or singleton view —
  * so any in-grid edit (chart options, column resize/reorder) must persist
  * automatically. Callers must wrap this in `runSelfEdit` (or otherwise
@@ -399,7 +399,7 @@ async function persistResultDataToDocument(document: vscode.TextDocument, result
 * 
 *   - Bottom view - results shown in the bottom panel
 *   - Singleton view - a tab view not associated with a file backed document, typically used to show just charts
-*   - Document view - a tab view for results saved to a .kqr file that may include data, charts and query
+*   - Document view - a tab view for results saved to a .ktt file that may include data, charts and query
 *
 *   More than one view can exist at the same time, but only one is the active view
 */
@@ -685,7 +685,7 @@ export class ResultsViewer {
     }
 
     /**
-     * Opens a .kqr result as a document-owned custom editor.
+     * Opens a .ktt result as a document-owned custom editor.
      * Each distinct URI receives independent grid, chart, and persistence state.
      */
     async openResultDocument(uri: vscode.Uri, location: 'beside' | 'main'): Promise<void> {
@@ -945,8 +945,8 @@ export class ResultsViewer {
                 this.singletonTableWebViews.push(adapter);
                 view.onDidChangeViewState((state) => {
                     storeTableView(resultData, state);
-                    // Singleton views are backed by a .kqr file (history
-                    // entry or .kqr document opened-as-singleton). Persist
+                    // Singleton views are backed by a .ktt file (history
+                    // entry or .ktt document opened-as-singleton). Persist
                     // the layout change back to disk so it survives
                     // switching to another history item and back.
                     this.scheduleSingletonWriteBack();
@@ -1456,7 +1456,7 @@ export class ResultsViewer {
     }
 
     /**
-     * Saves the current result data to a .kqr file and opens it in a document view.
+     * Saves the current result data to a .ktt file and opens it in a document view.
      */
     async saveCurrentResults(): Promise<void> {
         const isSingleton = this.activeResultWebview === this.singletonView && this.singletonView?.active;
@@ -1649,11 +1649,11 @@ function singletonTitleForMode(mode: ResultViewMode): string {
 }
 
 // =============================================================================
-// DocumentViewProvider — document view provider for .kqr files
+// DocumentViewProvider — document view provider for .ktt files
 // =============================================================================
 
 /**
- * Document view provider for .kqr files.
+ * Document view provider for .ktt files.
  * The file contains ResultData JSON (tables + chart options + query).
  * Can show chart, data tables and query in different tabs.
  */
@@ -1962,7 +1962,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
             docTableWebViews.push(adapter);
             view.onDidChangeViewState((state) => {
                 storeTableView(resultData, state);
-                // Persist to the backing document immediately. .kqr docs
+                // Persist to the backing document immediately. .ktt docs
                 // have no Ctrl+S affordance from the webview side, so we
                 // auto-save (same model the chart editor uses for options).
                 void this.runSelfEdit(webviewPanel, () =>
@@ -2059,7 +2059,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         // already cached, so the initial table must be visible in the markup
         // itself instead of waiting for the page-bottom activation script.
         // Initializing Simple-DataTables inside display:none can collapse the
-        // leading row-number gutter in document-backed .kqr editors.
+        // leading row-number gutter in document-backed .ktt editors.
         const firstActiveView = showChart ? 'chart' : 'table-0';
 
         // Build individual table divs with inline content from DataTableView
