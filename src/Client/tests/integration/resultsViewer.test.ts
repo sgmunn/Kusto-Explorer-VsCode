@@ -83,6 +83,76 @@ suite('Results Viewer Integration Tests', () => {
         await resultsViewer.displayResultsInBottomPanel(data, 'data');
     });
 
+    test('Results badge follows populated, empty, and tableless results', async () => {
+        await vscode.window.showTextDocument(await vscode.workspace.openTextDocument({ language: 'kusto', content: 'print Value=1' }));
+        // Resolve the real view before displaying results so this regression does
+        // not depend on the separate first-open panel readiness race.
+        await vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
+        const viewer = resultsViewer as unknown as { resultsPanel: vscode.WebviewView | undefined };
+        const deadline = Date.now() + 5000;
+        while (!viewer.resultsPanel && Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        assert.ok(viewer.resultsPanel, 'Results view must resolve');
+
+        const data = makeResultData();
+        await resultsViewer.displayResultsInBottomPanel(data, 'data');
+        assert.deepStrictEqual(viewer.resultsPanel.badge, { value: 2, tooltip: '2 rows' });
+
+        const empty = { ...data, tables: [{ ...data.tables[0]!, rows: [] }] };
+        await resultsViewer.displayResultsInBottomPanel(empty, 'data');
+        assert.deepStrictEqual(viewer.resultsPanel.badge, { value: 0, tooltip: '0 rows' }, 'Zero rows must reset the old count');
+
+        const oneRow = { ...data, tables: [{ ...data.tables[0]!, rows: [['Washington', 7]] }] };
+        await resultsViewer.displayResultsInBottomPanel(oneRow, 'data');
+        assert.deepStrictEqual(viewer.resultsPanel.badge, { value: 1, tooltip: '1 rows' });
+
+        await resultsViewer.displayResultsInBottomPanel({ ...data, tables: [] }, 'data');
+        assert.deepStrictEqual(viewer.resultsPanel.badge, { value: 0, tooltip: '0 rows' }, 'No result tables must reset the old count');
+    });
+
+    test('Results badge clears an old error after a retried empty render', async () => {
+        await vscode.window.showTextDocument(await vscode.workspace.openTextDocument({ language: 'kusto', content: 'print Value=1' }));
+        await vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
+        const viewer = resultsViewer as unknown as {
+            resultsPanel: vscode.WebviewView;
+            panelRenderRevision: number;
+            showPanelHtml(html: string, renderRevision: number, rowCount?: number, hasError?: boolean): Promise<void>;
+        };
+        assert.ok(viewer.resultsPanel, 'Results view must resolve');
+        const panel = viewer.resultsPanel;
+        await viewer.showPanelHtml('<html><body>Test error</body></html>', viewer.panelRenderRevision, undefined, true);
+        assert.deepStrictEqual(panel.badge, { value: 1, tooltip: 'Error' });
+
+        // Throw only on the first HTML assignment to exercise recovery while
+        // retaining a real VS Code badge setter and view in the retry path.
+        let attempts = 0;
+        const webview = new Proxy(panel.webview, {
+            set(target, property, value) {
+                if (property === 'html' && ++attempts === 1) {
+                    throw new Error('Simulated first render failure');
+                }
+                return Reflect.set(target, property, value);
+            }
+        });
+        viewer.resultsPanel = new Proxy(panel, {
+            get(target, property) {
+                const value = property === 'webview' ? webview : Reflect.get(target, property);
+                return typeof value === 'function' ? value.bind(target) : value;
+            },
+            set(target, property, value) {
+                return Reflect.set(target, property, value, target);
+            }
+        });
+        try {
+            await viewer.showPanelHtml('<html><body>No rows</body></html>', viewer.panelRenderRevision, 0);
+            assert.strictEqual(attempts, 2, 'The render must exercise the retry');
+            assert.deepStrictEqual(panel.badge, { value: 0, tooltip: '0 rows' }, 'Retry must reset the old error badge');
+        } finally {
+            viewer.resultsPanel = panel;
+        }
+    });
+
     test('Display results in singleton view opens a tab', async () => {
         const data = makeResultData();
 
