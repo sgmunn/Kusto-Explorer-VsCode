@@ -39,9 +39,17 @@ suite('KustoTraceTools standalone extension', () => {
     });
 
     test('keeps local history beneath its own extension storage', async () => {
-        const uri = extension.exports.historyManager.getHistoryFileUri('rebranding-smoke.kqr');
-        assert.ok(uri.fsPath.split(path.sep).includes('local.kustotracetools'), uri.fsPath);
-        assert.ok(!uri.fsPath.includes('ms-kusto.kusto-explorer-vscode'), uri.fsPath);
+        const uri = await extension.exports.historyManager.addHistoryEntry({
+            query: 'print Value = 42',
+            tables: [{ name: 'PrimaryResult', columns: [{ name: 'Value', type: 'long' }], rows: [[42]] }],
+        });
+        try {
+            assert.ok(uri.fsPath.split(path.sep).includes('local.kustotracetools'), uri.fsPath);
+            assert.ok(!uri.fsPath.includes('ms-kusto.kusto-explorer-vscode'), uri.fsPath);
+            assert.strictEqual(path.extname(uri.fsPath), '.ktt', 'New history results use the KustoTraceTools file extension');
+        } finally {
+            await extension.exports.historyManager.deleteEntry(path.basename(uri.fsPath));
+        }
     });
 
     test('recognizes existing KQL file extensions', async () => {
@@ -53,24 +61,26 @@ suite('KustoTraceTools standalone extension', () => {
         }
     });
 
-    test('opens saved results with the newly registered custom editor', async () => {
-        const uri = vscode.Uri.joinPath(fixtureDirectory, 'saved-result.kqr');
-        await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify({
-            query: 'print Value = 42',
-            tables: [{ name: 'PrimaryResult', columns: [{ name: 'Value', type: 'long' }], rows: [[42]] }],
-        })));
-        await vscode.commands.executeCommand('vscode.openWith', uri, 'kustoTraceTools_resultViewer');
-        const deadline = Date.now() + 5000;
-        while (Date.now() < deadline) {
-            const opened = vscode.window.tabGroups.all.flatMap(group => group.tabs).some(tab => {
-                const input = tab.input;
-                return input instanceof vscode.TabInputCustom
-                    && input.uri.toString() === uri.toString()
-                    && input.viewType === 'kustoTraceTools_resultViewer';
-            });
-            if (opened) { return; }
-            await new Promise(resolve => setTimeout(resolve, 50));
-        }
-        assert.fail('Saved results did not open in the KustoTraceTools results editor');
-    });
+    for (const suffix of ['ktt', 'kqr']) {
+        test(`opens .${suffix} saved results with the newly registered custom editor`, async () => {
+            const uri = vscode.Uri.joinPath(fixtureDirectory, `saved-result.${suffix}`);
+            await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify({
+                query: 'print Value = 42',
+                tables: [{ name: 'PrimaryResult', columns: [{ name: 'Value', type: 'long' }], rows: [[42]] }],
+            })));
+            await vscode.commands.executeCommand('vscode.openWith', uri, 'kustoTraceTools_resultViewer');
+            const deadline = Date.now() + 5000;
+            while (Date.now() < deadline) {
+                const opened = vscode.window.tabGroups.all.flatMap(group => group.tabs).some(tab => {
+                    const input = tab.input;
+                    return input instanceof vscode.TabInputCustom
+                        && input.uri.toString() === uri.toString()
+                        && input.viewType === 'kustoTraceTools_resultViewer';
+                });
+                if (opened) { return; }
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            assert.fail('Saved results did not open in the KustoTraceTools results editor');
+        });
+    }
 });
