@@ -442,6 +442,8 @@ export class ResultsViewer {
 
     // ─── Bottom view state ──────────────────────────────────────────────
     private resultsPanel: vscode.WebviewView | undefined;
+    /** Prevent a delayed panel render from replacing a newer selection. */
+    private panelRenderRevision = 0;
     private lastPanelResultData: server.ResultData | undefined;
     private panelActiveTabIndex = 0;
     private panelActiveView: string = 'table-0';
@@ -745,6 +747,7 @@ export class ResultsViewer {
         resultData: server.ResultData | undefined,
         mode: ResultViewMode
     ): Promise<void> {
+        const renderRevision = ++this.panelRenderRevision;
         if (!resultData?.tables?.length) {
             this.clearResultsPanel();
             return;
@@ -765,7 +768,7 @@ export class ResultsViewer {
         const hasTable = !!resultData.tables.length;
 
         if (!hasTable && !hasChart) {
-            await this.showPanelHtml('<html><body>no results</body></html>');
+            await this.showPanelHtml('<html><body>no results</body></html>', renderRevision);
             return;
         }
 
@@ -786,6 +789,10 @@ export class ResultsViewer {
             } else {
                 await vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
             }
+        }
+
+        if (renderRevision !== this.panelRenderRevision) {
+            return;
         }
 
         // Create table views for each result table (dispose previous ones first)
@@ -821,7 +828,7 @@ export class ResultsViewer {
             resultData.query, resultData.cluster, resultData.database, resultData.tables, this.panelTableWebViews);
 
         const totalRows = resultData.tables.reduce((sum, t) => sum + t.rows.length, 0);
-        await this.showPanelHtml(injectMessageHandlerScripts(html), totalRows);
+        await this.showPanelHtml(injectMessageHandlerScripts(html), renderRevision, totalRows);
     }
 
     /**
@@ -865,11 +872,12 @@ export class ResultsViewer {
      * Displays a query error in the bottom view and closes any singleton view.
      */
     async displayErrorInBottomView(error: server.QueryDiagnostic): Promise<void> {
+        const renderRevision = ++this.panelRenderRevision;
         this.disposeSingletonView();
 
         const htmlMessage = `<html><body><table><tr><td>\u274C</td><td><pre>${escapeHtml(error.message)}</pre></td></tr><tr><td></td><td><pre>${escapeHtml(error.details || '')}</pre></td></tr></table></body></html>`;
 
-        await this.showPanelHtml(htmlMessage, undefined, true);
+        await this.showPanelHtml(htmlMessage, renderRevision, undefined, true);
     }
 
     /**
@@ -1043,7 +1051,7 @@ export class ResultsViewer {
         }
     }
 
-    private async showPanelHtml(html: string, rowCount?: number, hasError?: boolean): Promise<void> {
+    private async showPanelHtml(html: string, renderRevision: number, rowCount?: number, hasError?: boolean): Promise<void> {
         const isSingletonMode = getResultsDisplayLocation() !== 'panel';
 
         if (!this.resultsPanel) {
@@ -1058,20 +1066,17 @@ export class ResultsViewer {
             }
         }
 
-        if (!this.resultsPanel) {
+        if (!this.resultsPanel || renderRevision !== this.panelRenderRevision) {
             return;
         }
 
-        try {
-            this.resultsPanel.webview.html = html;
+        const badge = rowCount
+            ? { tooltip: `${rowCount} rows`, value: rowCount }
+            : hasError ? { tooltip: 'Error', value: 1 } : undefined;
 
-            if (rowCount) {
-                this.resultsPanel.badge = { tooltip: `${rowCount} rows`, value: rowCount };
-            } else if (hasError) {
-                this.resultsPanel.badge = { tooltip: 'Error', value: 1 };
-            } else {
-                this.resultsPanel.badge = undefined;
-            }
+        try {
+            this.resultsPanel.badge = badge;
+            this.resultsPanel.webview.html = html;
 
             // Only auto-show the panel in panel mode
             if (!isSingletonMode) {
@@ -1082,12 +1087,10 @@ export class ResultsViewer {
                 return;
             }
             await vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
-            if (this.resultsPanel) {
+            if (this.resultsPanel && renderRevision === this.panelRenderRevision) {
                 try {
+                    this.resultsPanel.badge = badge;
                     this.resultsPanel.webview.html = html;
-                    if (rowCount) {
-                        this.resultsPanel.badge = { tooltip: `${rowCount} rows`, value: rowCount };
-                    }
                     this.resultsPanel.show(true);
                 } catch (retryError) {
                     vscode.window.showErrorMessage(`Failed to display results: ${retryError}`);
@@ -1098,8 +1101,8 @@ export class ResultsViewer {
 
     private clearResultsPanel(): void {
         if (this.resultsPanel) {
-            this.resultsPanel.webview.html = '<html>no results</html>';
             this.resultsPanel.badge = undefined;
+            this.resultsPanel.webview.html = '<html>no results</html>';
         }
         this.lastPanelResultData = undefined;
         this.panelHasChart = false;

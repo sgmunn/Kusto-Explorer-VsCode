@@ -1,11 +1,143 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import { describe, expect, it, vi } from 'vitest';
-import type * as vscode from 'vscode';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as vscode from 'vscode';
 import { CompositeChartProvider } from '../../features/compositeChartProvider';
-import { DocumentViewProvider, WebViewAdapter } from '../../features/resultsViewer';
-import type { ResultTable } from '../../features/server';
+import { DocumentViewProvider, ResultsViewer, WebViewAdapter } from '../../features/resultsViewer';
+import type { ResultData, ResultTable } from '../../features/server';
+
+vi.mock('vscode', async (importOriginal) => {
+    const original = await importOriginal<typeof import('vscode')>();
+    return {
+        ...original,
+        commands: { executeCommand: vi.fn(async () => undefined) },
+        window: { ...original.window, activeColorTheme: { kind: 1 } },
+        ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3 },
+    };
+});
+
+describe('ResultsViewer panel badge', () => {
+    const oldBadge = { tooltip: '12 rows', value: 12 };
+
+    function createPanel(failures = 0): vscode.WebviewView {
+        let html = '<html>previous results</html>';
+        return {
+            badge: oldBadge,
+            webview: {
+                get html() { return html; },
+                set html(value: string) {
+                    if (failures-- > 0) throw new Error('Webview unavailable');
+                    html = value;
+                },
+                onDidReceiveMessage: vi.fn(() => ({ dispose: vi.fn() })),
+            },
+            show: vi.fn(),
+        } as unknown as vscode.WebviewView;
+    }
+
+    function createViewer(panel: vscode.WebviewView | undefined) {
+        const viewer = Object.create(ResultsViewer.prototype) as ResultsViewer;
+        const state = {
+            resultsPanel: panel,
+            panelRenderRevision: 0,
+            panelTableViews: [],
+            panelTableWebViews: [],
+            htmlBuilder: { BuildMultiTabbedHtml: vi.fn(() => '<html>new results</html>') },
+            dataTableProvider: {
+                createView: vi.fn(() => ({ dispose: vi.fn(), onDidChangeViewState: vi.fn() })),
+            },
+        };
+        Object.assign(viewer, state);
+        return { viewer, state: viewer as unknown as typeof state & { waitForPanelReady?: () => Promise<void> } };
+    }
+
+    function result(...rowCounts: number[]): ResultData {
+        return {
+            tables: rowCounts.map((count, index) => ({
+                name: `Table${index}`,
+                columns: [{ name: 'Value', type: 'int' }],
+                rows: Array.from({ length: count }, (_, row) => [row]),
+            })),
+        };
+    }
+
+    beforeEach(() => vi.mocked(vscode.commands.executeCommand).mockReset());
+
+    it.each([0, 1])('updates count, empty, error and no-table badges with %i render failures', async (failures) => {
+        const panel = createPanel(failures);
+        const { viewer } = createViewer(panel);
+
+        await viewer.displayResultsInBottomPanel(result(2, 3), 'data');
+        expect(panel.badge).toEqual({ tooltip: '5 rows', value: 5 });
+        await viewer.displayResultsInBottomPanel(result(0), 'data');
+        expect(panel.badge).toBeUndefined();
+        await viewer.displayErrorInBottomView({ message: 'Query failed' });
+        expect(panel.badge).toEqual({ tooltip: 'Error', value: 1 });
+        await viewer.displayResultsInBottomPanel(result(), 'data');
+        expect(panel.badge).toBeUndefined();
+    });
+
+    it.each(['empty', 'error'] as const)('sets the %s badge on a replacement panel during retry', async (selection) => {
+        const { viewer, state } = createViewer(createPanel(1));
+        const replacement = createPanel();
+        vi.mocked(vscode.commands.executeCommand).mockImplementation(async (command) => {
+            if (command === 'msKustoExplorer_resultsView.focus') state.resultsPanel = replacement;
+        });
+
+        if (selection === 'empty') await viewer.displayResultsInBottomPanel(result(0), 'data');
+        else await viewer.displayErrorInBottomView({ message: 'Query failed' });
+
+        expect(replacement.badge).toEqual(selection === 'empty' ? undefined : { tooltip: 'Error', value: 1 });
+        expect(replacement.webview.html).not.toContain('previous results');
+    });
+
+    it.each([result(0), result()])('clears the badge before an empty render fails', async (emptyResult) => {
+        const panel = createPanel(2);
+        const { viewer } = createViewer(panel);
+
+        const display = viewer.displayResultsInBottomPanel(emptyResult, 'data');
+        if (emptyResult.tables.length) await expect(display).resolves.toBeUndefined();
+        else await expect(display).rejects.toThrow('Webview unavailable');
+
+        expect(panel.badge).toBeUndefined();
+    });
+
+    it.each([result(0), result()])('keeps a newer empty selection when an older display retry resumes', async (emptyResult) => {
+        const panel = createPanel(1);
+        const { viewer } = createViewer(panel);
+        let resumeFocus!: () => void;
+        const focus = new Promise<void>(resolve => { resumeFocus = resolve; });
+        vi.mocked(vscode.commands.executeCommand).mockImplementation(async (command) => {
+            if (command === 'msKustoExplorer_resultsView.focus') await focus;
+        });
+
+        const olderDisplay = viewer.displayResultsInBottomPanel(result(4), 'data');
+        await viewer.displayResultsInBottomPanel(emptyResult, 'data');
+        const selectedHtml = panel.webview.html;
+        resumeFocus();
+        await olderDisplay;
+
+        expect(panel.badge).toBeUndefined();
+        expect(panel.webview.html).toBe(selectedHtml);
+    });
+
+    it('keeps a newer empty selection while an older display waits for the panel', async () => {
+        const { viewer, state } = createViewer(undefined);
+        let ready!: () => void;
+        state.waitForPanelReady = () => new Promise<void>(resolve => { ready = resolve; });
+
+        const olderDisplay = viewer.displayResultsInBottomPanel(result(4), 'data');
+        const panel = createPanel();
+        state.resultsPanel = panel;
+        await viewer.displayResultsInBottomPanel(result(), 'data');
+        ready();
+        await olderDisplay;
+
+        expect(panel.badge).toBeUndefined();
+        expect(panel.webview.html).toContain('no results');
+    });
+});
 
 function createMockVsCodeWebview(): vscode.Webview {
     return {
