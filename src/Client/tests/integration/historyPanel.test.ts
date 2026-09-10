@@ -21,7 +21,7 @@ function makeResultData(query: string, cluster?: string, database?: string, rowC
 
 /** Get the extension's exported HistoryManager instance. */
 async function getHistoryManager(): Promise<HistoryManager> {
-    const ext = vscode.extensions.getExtension('ms-kusto.kusto-explorer-vscode')!;
+    const ext = vscode.extensions.getExtension('local.kustotracetools')!;
     // activate() returns cached exports if already activated
     const exports = ext.isActive ? ext.exports : await ext.activate();
     return (exports as any).historyManager as HistoryManager;
@@ -46,10 +46,10 @@ suite('History Integration Tests', () => {
 
     test('Platform-specific reveal commands are registered', async () => {
         const commands = await vscode.commands.getCommands(true);
-        assert.ok(commands.includes('msKustoExplorer.revealHistoryItemInFinder'));
-        assert.ok(commands.includes('msKustoExplorer.revealHistoryItemInExplorer'));
-        assert.ok(commands.includes('msKustoExplorer.revealHistoryItemInFileManager'));
-        assert.ok(commands.includes('msKustoExplorer.copyHistoryItemToWorkspace'));
+        assert.ok(commands.includes('kustoTraceTools.revealHistoryItemInFinder'));
+        assert.ok(commands.includes('kustoTraceTools.revealHistoryItemInExplorer'));
+        assert.ok(commands.includes('kustoTraceTools.revealHistoryItemInFileManager'));
+        assert.ok(commands.includes('kustoTraceTools.copyHistoryItemToWorkspace'));
     });
 
     test('Adding a history entry creates a retrievable entry', async () => {
@@ -74,7 +74,7 @@ suite('History Integration Tests', () => {
         assert.strictEqual(entries.length, 2);
 
         // Delete the first entry (most recent = query2)
-        await vscode.commands.executeCommand('msKustoExplorer.deleteHistoryItem', { meta: entries[0] });
+        await vscode.commands.executeCommand('kustoTraceTools.deleteHistoryItem', { meta: entries[0] });
 
         entries = historyManager.getEntries();
         assert.strictEqual(entries.length, 1, 'Should have one entry after deletion');
@@ -91,7 +91,7 @@ suite('History Integration Tests', () => {
         const original = vscode.window.showWarningMessage;
         (vscode.window as any).showWarningMessage = async () => 'Delete All';
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.clearHistory');
+            await vscode.commands.executeCommand('kustoTraceTools.clearHistory');
         } finally {
             (vscode.window as any).showWarningMessage = original;
         }

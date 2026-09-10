@@ -38,11 +38,11 @@ suite('Query Cancellation Integration Tests', () => {
     let originalEditorMode: string | undefined;
 
     suiteSetup(async () => {
-        const extension = vscode.extensions.getExtension('ms-kusto.kusto-explorer-vscode')!;
+        const extension = vscode.extensions.getExtension('local.kustotracetools')!;
         const exports = extension.isActive ? extension.exports : await extension.activate();
         server = exports.server;
         history = exports.historyManager;
-        const config = vscode.workspace.getConfiguration('msKustoExplorer.results');
+        const config = vscode.workspace.getConfiguration('kustoTraceTools.results');
         originalDisplay = config.inspect<string>('display')?.globalValue;
         originalEditorMode = config.inspect<string>('editorMode')?.globalValue;
         await config.update('display', 'beside', vscode.ConfigurationTarget.Global);
@@ -50,7 +50,7 @@ suite('Query Cancellation Integration Tests', () => {
     });
 
     suiteTeardown(async () => {
-        const config = vscode.workspace.getConfiguration('msKustoExplorer.results');
+        const config = vscode.workspace.getConfiguration('kustoTraceTools.results');
         await config.update('display', originalDisplay, vscode.ConfigurationTarget.Global);
         await config.update('editorMode', originalEditorMode, vscode.ConfigurationTarget.Global);
     });
@@ -85,14 +85,14 @@ suite('Query Cancellation Integration Tests', () => {
             end: { line, character: document.lineAt(line).text.length } }));
         server.getQueryRanges = async () => ({ uri: document.uri.toString(), ranges });
         const before = history.getEntries().length;
-        const first = vscode.commands.executeCommand('msKustoExplorer.runQuery', 0, 0, 0, 13);
+        const first = vscode.commands.executeCommand('kustoTraceTools.runQuery', 0, 0, 0, 13);
         await waitUntil(() => pending.length === 1, 'First query did not start');
-        const second = vscode.commands.executeCommand('msKustoExplorer.runQuery', 2, 0, 2, 14);
+        const second = vscode.commands.executeCommand('kustoTraceTools.runQuery', 2, 0, 2, 14);
         await waitUntil(() => pending.length === 2, 'Second query did not start');
         const lenses = await vscode.commands.executeCommand<vscode.CodeLens[]>(
             'vscode.executeCodeLensProvider', document.uri);
         const cancel = lenses?.find(lens => lens.range.start.line === 0
-            && lens.command?.command === 'msKustoExplorer.cancelQuery')?.command;
+            && lens.command?.command === 'kustoTraceTools.cancelQuery')?.command;
         assert.ok(cancel, 'Running query must expose its Cancel CodeLens');
         await vscode.commands.executeCommand(cancel.command, ...cancel.arguments!);
         assert.strictEqual(pending[0]!.token.isCancellationRequested, true);
@@ -109,9 +109,9 @@ suite('Query Cancellation Integration Tests', () => {
         await vscode.window.showTextDocument(document);
         const after = await vscode.commands.executeCommand<vscode.CodeLens[]>(
             'vscode.executeCodeLensProvider', document.uri);
-        assert.ok(!after?.some(lens => lens.command?.command === 'msKustoExplorer.cancelQuery'),
+        assert.ok(!after?.some(lens => lens.command?.command === 'kustoTraceTools.cancelQuery'),
             'Cancel controls must clear after completion');
-        const next = vscode.commands.executeCommand('msKustoExplorer.runQuery', 0, 0, 0, 13);
+        const next = vscode.commands.executeCommand('kustoTraceTools.runQuery', 0, 0, 0, 13);
         await waitUntil(() => pending.length === 3, 'Subsequent query did not start');
         assert.strictEqual(pending[2]!.token.isCancellationRequested, false);
         pending[2]!.resolve(result('subsequent query'));
@@ -123,11 +123,11 @@ suite('Query Cancellation Integration Tests', () => {
         const document = await vscode.workspace.openTextDocument({ language: 'kusto', content: 'print value=1' });
         await vscode.window.showTextDocument(document);
         const before = history.getEntries().length;
-        const first = vscode.commands.executeCommand('msKustoExplorer.runQuery', 0, 0, 0, 13);
+        const first = vscode.commands.executeCommand('kustoTraceTools.runQuery', 0, 0, 0, 13);
         await waitUntil(() => pending.length === 1, 'First query did not start');
-        const second = vscode.commands.executeCommand('msKustoExplorer.runQuery', 0, 0, 0, 13);
+        const second = vscode.commands.executeCommand('kustoTraceTools.runQuery', 0, 0, 0, 13);
         await waitUntil(() => pending.length === 2, 'Overlapping query did not start');
-        await vscode.commands.executeCommand('msKustoExplorer.cancelQuery');
+        await vscode.commands.executeCommand('kustoTraceTools.cancelQuery');
         assert.strictEqual(pending[0]!.token.isCancellationRequested, false);
         assert.strictEqual(pending[1]!.token.isCancellationRequested, true);
         pending[1]!.resolve({ error: { message: 'late cancellation response' } } as RunQueryResult);
@@ -145,14 +145,14 @@ suite('Query Cancellation Integration Tests', () => {
         const originalProgress = vscode.window.withProgress;
         const source = new vscode.CancellationTokenSource();
         try {
-            await vscode.commands.executeCommand('vscode.openWith', uri, 'msKustoExplorer_resultViewer');
+            await vscode.commands.executeCommand('vscode.openWith', uri, 'kustoTraceTools_resultViewer');
             // Keep the real progress UI but supply a token that this test can cancel.
             (vscode.window as any).withProgress = (options: vscode.ProgressOptions, task: any) => {
                 assert.strictEqual(options.cancellable, true, 'Rerun progress must offer Cancel');
                 return originalProgress(options, progress => task(progress, source.token));
             };
             const before = history.getEntries().length;
-            const run = vscode.commands.executeCommand('msKustoExplorer.rerunQuery');
+            const run = vscode.commands.executeCommand('kustoTraceTools.rerunQuery');
             await waitUntil(() => pending.length === 1, 'Results rerun did not start');
             source.cancel();
             await waitUntil(() => pending[0]!.token.isCancellationRequested, 'Rerun token was not cancelled');

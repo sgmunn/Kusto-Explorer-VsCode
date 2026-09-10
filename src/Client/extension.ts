@@ -39,7 +39,7 @@ let client: LanguageClient;
 export async function activate(context: ExtensionContext)
 {
     // Create output channel early so dotnet activation can log to it
-    const outputChannel = window.createOutputChannel('Kusto');
+    const outputChannel = window.createOutputChannel('KustoTraceTools');
 
     // ─── Language server (optional — requires .NET and Server.dll) ───
 
@@ -79,8 +79,8 @@ export async function activate(context: ExtensionContext)
         };
 
         client = new LanguageClient(
-            'kustoLanguageServer',
-            'Kusto Language Server',
+            'kustoTraceToolsLanguageServer',
+            'KustoTraceTools Language Server',
             serverOptions,
             clientOptions
         );
@@ -90,7 +90,7 @@ export async function activate(context: ExtensionContext)
             server = new Server(client, context);
         } catch (error) {
             outputChannel.appendLine(`Failed to start language server: ${error instanceof Error ? error.message : String(error)}`);
-            window.showErrorMessage('Kusto language server failed to start. Language features will be unavailable.');
+            window.showErrorMessage('KustoTraceTools language server failed to start. Language features will be unavailable.');
         }
     }
 
@@ -99,7 +99,7 @@ export async function activate(context: ExtensionContext)
     const clipboard = new Clipboard();
     const scratchPadManager = new ScratchPadManager(context);
 
-    // Register "Go to Definition" provider for kusto-entity:// URIs
+    // Register "Go to Definition" provider for kustotracetools-entity:// URIs
     const entityDefinitionProvider = new EntityDefinitionProvider(server);
     context.subscriptions.push(
         vscode.workspace.registerTextDocumentContentProvider(ENTITY_DEFINITION_SCHEME, entityDefinitionProvider),
@@ -108,7 +108,7 @@ export async function activate(context: ExtensionContext)
 
     // Register command to fix doubled commit characters after completion acceptance
     context.subscriptions.push(
-        vscode.commands.registerCommand('msKustoExplorer.fixCommitCharDoubling', fixCommitCharDoubling)
+        vscode.commands.registerCommand('kustoTraceTools.fixCommitCharDoubling', fixCommitCharDoubling)
     );
 
     // activate results viewer
@@ -118,26 +118,26 @@ export async function activate(context: ExtensionContext)
     const resultsViewer = new ResultsViewer(context, server, clipboard, chartProvider, chartEditorProvider, dataTableProvider);
     const queryParameterProfiles = new QueryParameterProfiles(context);
     context.subscriptions.push(
-        vscode.commands.registerCommand('msKustoExplorer.selectQueryParameterProfile', () => queryParameterProfiles.selectProfile()),
-        vscode.commands.registerCommand('msKustoExplorer.createQueryParameterProfile', () => queryParameterProfiles.createProfile()),
-        vscode.commands.registerCommand('msKustoExplorer.editQueryParameterProfile', () => queryParameterProfiles.editActiveProfile()),
-        vscode.commands.registerCommand('msKustoExplorer.openQueryParameterFile', () => queryParameterProfiles.openParameterFile()),
-        vscode.commands.registerCommand('msKustoExplorer.openQuerySpecificParameterFile', () => queryParameterProfiles.openQueryParameterFile()),
-        vscode.commands.registerCommand('msKustoExplorer.showRowDetails', () =>
-            vscode.commands.executeCommand('msKustoExplorer_rowDetails.focus')),
-        vscode.commands.registerCommand('msKustoExplorer.copyChart', () => resultsViewer.copyChart()),
-        vscode.commands.registerCommand('msKustoExplorer.toggleChartEditor', () => resultsViewer.toggleChartEditor()),
-        vscode.commands.registerCommand('msKustoExplorer.saveSingletonResults', () => resultsViewer.saveCurrentResults()),
-        vscode.commands.registerCommand('msKustoExplorer.moveViewToMain', () => resultsViewer.moveResultsTabToMain()),
-        vscode.commands.registerCommand('msKustoExplorer.toggleSearch', () => resultsViewer.toggleSearch()),
-        vscode.commands.registerCommand('msKustoExplorer.removeChart', () => resultsViewer.removeChart()),
-        vscode.commands.registerCommand('msKustoExplorer.copyData', () => resultsViewer.copyData()),
-        vscode.commands.registerCommand('msKustoExplorer.copyDataAsMarkdown', () => resultsViewer.copyDataAsMarkdown()),
-        vscode.commands.registerCommand('msKustoExplorer.copyDataAsHtml', () => resultsViewer.copyDataAsHtml()),
-        vscode.commands.registerCommand('msKustoExplorer.copyTableAsDatatable', () => resultsViewer.copyTableAsDatatable()),
-        vscode.commands.registerCommand('msKustoExplorer.savePanelResults', () => resultsViewer.saveCurrentResults()),
-        vscode.commands.registerCommand('msKustoExplorer.chartPanelResults', () => resultsViewer.openChartFromBottomView()),
-        vscode.commands.registerCommand('msKustoExplorer.rerunQuery', () => resultsViewer.rerunQuery()),
+        vscode.commands.registerCommand('kustoTraceTools.selectQueryParameterProfile', () => queryParameterProfiles.selectProfile()),
+        vscode.commands.registerCommand('kustoTraceTools.createQueryParameterProfile', () => queryParameterProfiles.createProfile()),
+        vscode.commands.registerCommand('kustoTraceTools.editQueryParameterProfile', () => queryParameterProfiles.editActiveProfile()),
+        vscode.commands.registerCommand('kustoTraceTools.openQueryParameterFile', () => queryParameterProfiles.openParameterFile()),
+        vscode.commands.registerCommand('kustoTraceTools.openQuerySpecificParameterFile', () => queryParameterProfiles.openQueryParameterFile()),
+        vscode.commands.registerCommand('kustoTraceTools.showRowDetails', () =>
+            vscode.commands.executeCommand('kustoTraceTools_rowDetails.focus')),
+        vscode.commands.registerCommand('kustoTraceTools.copyChart', () => resultsViewer.copyChart()),
+        vscode.commands.registerCommand('kustoTraceTools.toggleChartEditor', () => resultsViewer.toggleChartEditor()),
+        vscode.commands.registerCommand('kustoTraceTools.saveSingletonResults', () => resultsViewer.saveCurrentResults()),
+        vscode.commands.registerCommand('kustoTraceTools.moveViewToMain', () => resultsViewer.moveResultsTabToMain()),
+        vscode.commands.registerCommand('kustoTraceTools.toggleSearch', () => resultsViewer.toggleSearch()),
+        vscode.commands.registerCommand('kustoTraceTools.removeChart', () => resultsViewer.removeChart()),
+        vscode.commands.registerCommand('kustoTraceTools.copyData', () => resultsViewer.copyData()),
+        vscode.commands.registerCommand('kustoTraceTools.copyDataAsMarkdown', () => resultsViewer.copyDataAsMarkdown()),
+        vscode.commands.registerCommand('kustoTraceTools.copyDataAsHtml', () => resultsViewer.copyDataAsHtml()),
+        vscode.commands.registerCommand('kustoTraceTools.copyTableAsDatatable', () => resultsViewer.copyTableAsDatatable()),
+        vscode.commands.registerCommand('kustoTraceTools.savePanelResults', () => resultsViewer.saveCurrentResults()),
+        vscode.commands.registerCommand('kustoTraceTools.chartPanelResults', () => resultsViewer.openChartFromBottomView()),
+        vscode.commands.registerCommand('kustoTraceTools.rerunQuery', () => resultsViewer.rerunQuery()),
     );
 
     // Track Kusto session state
@@ -145,16 +145,16 @@ export async function activate(context: ExtensionContext)
         const hasKustoDocument = vscode.workspace.textDocuments.some(doc => doc.languageId === 'kusto');
         const hasSingletonView = resultsViewer.hasSingletonView();
         const isKustoActive = hasKustoDocument || hasSingletonView;
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.hasActiveDocument', isKustoActive);
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.hasSingletonView', hasSingletonView);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.hasActiveDocument', isKustoActive);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.hasSingletonView', hasSingletonView);
 
         const activeEditor = vscode.window.activeTextEditor;
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.isEntityDefinition', activeEditor?.document.uri.scheme === ENTITY_DEFINITION_SCHEME);
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.isScratchPad', activeEditor?.document.uri.scheme === SCRATCH_PAD_SCHEME);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.isEntityDefinition', activeEditor?.document.uri.scheme === ENTITY_DEFINITION_SCHEME);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.isScratchPad', activeEditor?.document.uri.scheme === SCRATCH_PAD_SCHEME);
     };
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('msKustoExplorer.singletonViewStateChanged', () => updateKustoContextFn())
+        vscode.commands.registerCommand('kustoTraceTools.singletonViewStateChanged', () => updateKustoContextFn())
     );
     updateKustoContextFn();
     context.subscriptions.push(
@@ -169,19 +169,19 @@ export async function activate(context: ExtensionContext)
     // activate scratch pad documents
     const scratchPadPanel = new ScratchPadPanel(context, scratchPadManager, connectionManager);
     context.subscriptions.push(
-        vscode.commands.registerCommand('msKustoExplorer.newScratchPad', () => scratchPadPanel.createScratchPad()),
-        vscode.commands.registerCommand('msKustoExplorer.openScratchPad', (item) => scratchPadPanel.openScratchPad(item)),
-        vscode.commands.registerCommand('msKustoExplorer.deleteScratchPad', (item) => scratchPadPanel.deleteScratchPad(item)),
-        vscode.commands.registerCommand('msKustoExplorer.renameScratchPad', (item) => scratchPadPanel.renameScratchPad(item)),
-        vscode.commands.registerCommand('msKustoExplorer.saveScratchPadAs', () => scratchPadPanel.saveScratchPadAs()),
+        vscode.commands.registerCommand('kustoTraceTools.newScratchPad', () => scratchPadPanel.createScratchPad()),
+        vscode.commands.registerCommand('kustoTraceTools.openScratchPad', (item) => scratchPadPanel.openScratchPad(item)),
+        vscode.commands.registerCommand('kustoTraceTools.deleteScratchPad', (item) => scratchPadPanel.deleteScratchPad(item)),
+        vscode.commands.registerCommand('kustoTraceTools.renameScratchPad', (item) => scratchPadPanel.renameScratchPad(item)),
+        vscode.commands.registerCommand('kustoTraceTools.saveScratchPadAs', () => scratchPadPanel.saveScratchPadAs()),
     );
 
     // Register Kusto Explorer import commands
     const importManager = new ImportManager(scratchPadManager, connectionManager);
     const importer = new Importer(importManager, connectionManager);
     context.subscriptions.push(
-        vscode.commands.registerCommand('msKustoExplorer.importConnectionsFromKustoExplorer', () => importer.importConnections()),
-        vscode.commands.registerCommand('msKustoExplorer.importScratchPadsFromKustoExplorer', () => importer.importScratchPads()),
+        vscode.commands.registerCommand('kustoTraceTools.importConnectionsFromKustoExplorer', () => importer.importConnections()),
+        vscode.commands.registerCommand('kustoTraceTools.importScratchPadsFromKustoExplorer', () => importer.importScratchPads()),
     );
 
     // activate connections panel and related features
@@ -189,23 +189,23 @@ export async function activate(context: ExtensionContext)
     await connectionsPanel.initialize();
     // No-op commands assigned to tree items to suppress auto-expand on click
     context.subscriptions.push(
-        vscode.commands.registerCommand('msKustoExplorer.selectServer', () => {}),
-        vscode.commands.registerCommand('msKustoExplorer.selectDatabase', () => {}),
-        vscode.commands.registerCommand('msKustoExplorer.selectEntity', () => {}),  
-        vscode.commands.registerCommand('msKustoExplorer.addServer', () => connectionsPanel.addServer()),
-        vscode.commands.registerCommand('msKustoExplorer.addServerToGroup', (item) => connectionsPanel.addServerToGroup(item)),
-        vscode.commands.registerCommand('msKustoExplorer.addServerGroup', () => connectionsPanel.addServerGroup()),
-        vscode.commands.registerCommand('msKustoExplorer.removeServer', (item) => connectionsPanel.removeServer(item)),
-        vscode.commands.registerCommand('msKustoExplorer.removeServerGroup', (item) => connectionsPanel.removeServerGroup(item)),
-        vscode.commands.registerCommand('msKustoExplorer.moveServer', (item) => connectionsPanel.moveServer(item)),
-        vscode.commands.registerCommand('msKustoExplorer.editServer', (item) => connectionsPanel.editServer(item)),
-        vscode.commands.registerCommand('msKustoExplorer.renameServer', (item) => connectionsPanel.renameServer(item)),
-        vscode.commands.registerCommand('msKustoExplorer.renameServerGroup', (item) => connectionsPanel.renameServerGroup(item)),
-        vscode.commands.registerCommand('msKustoExplorer.refreshServer', (item) => connectionsPanel.refreshServer(item)),
-        vscode.commands.registerCommand('msKustoExplorer.refreshDatabase', (item) => connectionsPanel.refreshDatabase(item)),
-        vscode.commands.registerCommand('msKustoExplorer.copyEntityAsCommand', (item) => connectionsPanel.copyEntityAsCommand(item)),
-        vscode.commands.registerCommand('msKustoExplorer.copyEntityAsExpression', (item) => connectionsPanel.copyEntityAsExpression(item)),
-        vscode.commands.registerCommand('msKustoExplorer.viewEntityDefinition', (item) => connectionsPanel.viewEntityDefinition(item)),
+        vscode.commands.registerCommand('kustoTraceTools.selectServer', () => {}),
+        vscode.commands.registerCommand('kustoTraceTools.selectDatabase', () => {}),
+        vscode.commands.registerCommand('kustoTraceTools.selectEntity', () => {}),
+        vscode.commands.registerCommand('kustoTraceTools.addServer', () => connectionsPanel.addServer()),
+        vscode.commands.registerCommand('kustoTraceTools.addServerToGroup', (item) => connectionsPanel.addServerToGroup(item)),
+        vscode.commands.registerCommand('kustoTraceTools.addServerGroup', () => connectionsPanel.addServerGroup()),
+        vscode.commands.registerCommand('kustoTraceTools.removeServer', (item) => connectionsPanel.removeServer(item)),
+        vscode.commands.registerCommand('kustoTraceTools.removeServerGroup', (item) => connectionsPanel.removeServerGroup(item)),
+        vscode.commands.registerCommand('kustoTraceTools.moveServer', (item) => connectionsPanel.moveServer(item)),
+        vscode.commands.registerCommand('kustoTraceTools.editServer', (item) => connectionsPanel.editServer(item)),
+        vscode.commands.registerCommand('kustoTraceTools.renameServer', (item) => connectionsPanel.renameServer(item)),
+        vscode.commands.registerCommand('kustoTraceTools.renameServerGroup', (item) => connectionsPanel.renameServerGroup(item)),
+        vscode.commands.registerCommand('kustoTraceTools.refreshServer', (item) => connectionsPanel.refreshServer(item)),
+        vscode.commands.registerCommand('kustoTraceTools.refreshDatabase', (item) => connectionsPanel.refreshDatabase(item)),
+        vscode.commands.registerCommand('kustoTraceTools.copyEntityAsCommand', (item) => connectionsPanel.copyEntityAsCommand(item)),
+        vscode.commands.registerCommand('kustoTraceTools.copyEntityAsExpression', (item) => connectionsPanel.copyEntityAsExpression(item)),
+        vscode.commands.registerCommand('kustoTraceTools.viewEntityDefinition', (item) => connectionsPanel.viewEntityDefinition(item)),
     );
 
     // Create status bar item showing the active document's cluster and database connection.
@@ -217,27 +217,27 @@ export async function activate(context: ExtensionContext)
     // activate query execution features
     const historyPanel = new HistoryPanel(context, historyManager, resultsViewer);
     context.subscriptions.push(
-        vscode.commands.registerCommand('msKustoExplorer.openHistoryItem', (item) => historyPanel.openHistoryItem(item)),
-        vscode.commands.registerCommand('msKustoExplorer.revealHistoryItemInFinder', (item) => historyPanel.revealHistoryItem(item)),
-        vscode.commands.registerCommand('msKustoExplorer.revealHistoryItemInExplorer', (item) => historyPanel.revealHistoryItem(item)),
-        vscode.commands.registerCommand('msKustoExplorer.revealHistoryItemInFileManager', (item) => historyPanel.revealHistoryItem(item)),
-        vscode.commands.registerCommand('msKustoExplorer.copyHistoryItemToWorkspace', (item) => historyPanel.copyHistoryItemToWorkspace(item)),
-        vscode.commands.registerCommand('msKustoExplorer.deleteHistoryItem', (item) => historyPanel.deleteHistoryItem(item)),
-        vscode.commands.registerCommand('msKustoExplorer.clearHistory', () => historyPanel.clearHistory()),
+        vscode.commands.registerCommand('kustoTraceTools.openHistoryItem', (item) => historyPanel.openHistoryItem(item)),
+        vscode.commands.registerCommand('kustoTraceTools.revealHistoryItemInFinder', (item) => historyPanel.revealHistoryItem(item)),
+        vscode.commands.registerCommand('kustoTraceTools.revealHistoryItemInExplorer', (item) => historyPanel.revealHistoryItem(item)),
+        vscode.commands.registerCommand('kustoTraceTools.revealHistoryItemInFileManager', (item) => historyPanel.revealHistoryItem(item)),
+        vscode.commands.registerCommand('kustoTraceTools.copyHistoryItemToWorkspace', (item) => historyPanel.copyHistoryItemToWorkspace(item)),
+        vscode.commands.registerCommand('kustoTraceTools.deleteHistoryItem', (item) => historyPanel.deleteHistoryItem(item)),
+        vscode.commands.registerCommand('kustoTraceTools.clearHistory', () => historyPanel.clearHistory()),
     );
     const queryEditor = new QueryEditor(context, server, clipboard, historyManager, connectionManager, resultsViewer, historyPanel, queryParameterProfiles);
     context.subscriptions.push(
-        vscode.commands.registerCommand('msKustoExplorer.noop', () => {}),
-        vscode.commands.registerCommand('msKustoExplorer.runQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.runQuery(startLine, startChar, endLine, endChar)),
-        vscode.commands.registerCommand('msKustoExplorer.runQuery.running', () => {}),
-        vscode.commands.registerCommand('msKustoExplorer.cancelQuery', (uri?: vscode.Uri | string, startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.cancelQuery(uri, startLine, startChar, endLine, endChar)),
-        vscode.commands.registerCommand('msKustoExplorer.copyClientRequestId', (clientRequestId?: string) => queryEditor.copyClientRequestId(clientRequestId)),
-        vscode.commands.registerCommand('msKustoExplorer.copyQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.copyQuery(startLine, startChar, endLine, endChar)),
-        vscode.commands.registerCommand('msKustoExplorer.copyQueryTransparent', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.copyQuery(startLine, startChar, endLine, endChar, true)),
-        vscode.commands.registerCommand('msKustoExplorer.formatQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.formatQuery(startLine, startChar, endLine, endChar)),
-        vscode.commands.registerCommand('msKustoExplorer.selectQuery', (startLine: number, startChar: number, endLine: number, endChar: number) => queryEditor.selectRange(startLine, startChar, endLine, endChar)),
-        vscode.commands.registerCommand('msKustoExplorer.showResults', (startLine: number, startChar: number) => queryEditor.showHistoryResults(startLine, startChar)),
-        vscode.commands.registerCommand('msKustoExplorer.refreshDocumentSchema', () => queryEditor.refreshDocumentSchema()),
+        vscode.commands.registerCommand('kustoTraceTools.noop', () => {}),
+        vscode.commands.registerCommand('kustoTraceTools.runQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.runQuery(startLine, startChar, endLine, endChar)),
+        vscode.commands.registerCommand('kustoTraceTools.runQuery.running', () => {}),
+        vscode.commands.registerCommand('kustoTraceTools.cancelQuery', (uri?: vscode.Uri | string, startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.cancelQuery(uri, startLine, startChar, endLine, endChar)),
+        vscode.commands.registerCommand('kustoTraceTools.copyClientRequestId', (clientRequestId?: string) => queryEditor.copyClientRequestId(clientRequestId)),
+        vscode.commands.registerCommand('kustoTraceTools.copyQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.copyQuery(startLine, startChar, endLine, endChar)),
+        vscode.commands.registerCommand('kustoTraceTools.copyQueryTransparent', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.copyQuery(startLine, startChar, endLine, endChar, true)),
+        vscode.commands.registerCommand('kustoTraceTools.formatQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.formatQuery(startLine, startChar, endLine, endChar)),
+        vscode.commands.registerCommand('kustoTraceTools.selectQuery', (startLine: number, startChar: number, endLine: number, endChar: number) => queryEditor.selectRange(startLine, startChar, endLine, endChar)),
+        vscode.commands.registerCommand('kustoTraceTools.showResults', (startLine: number, startChar: number) => queryEditor.showHistoryResults(startLine, startChar)),
+        vscode.commands.registerCommand('kustoTraceTools.refreshDocumentSchema', () => queryEditor.refreshDocumentSchema()),
     );
 
     // activate copilot hooks
@@ -299,7 +299,7 @@ function fixCompletionCommit(
             // It checks if the typed commit character was doubled and removes the duplicate.
             item.command = {
                 title: '',
-                command: 'msKustoExplorer.fixCommitCharDoubling',
+                command: 'kustoTraceTools.fixCommitCharDoubling',
                 arguments: [conflicting, item.command]
             };
         }

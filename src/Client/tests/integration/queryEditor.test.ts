@@ -45,7 +45,7 @@ async function getExports(): Promise<{
     resultsViewer: ResultsViewer;
     historyManager: HistoryManager;
 }> {
-    const ext = vscode.extensions.getExtension('ms-kusto.kusto-explorer-vscode')!;
+    const ext = vscode.extensions.getExtension('local.kustotracetools')!;
     const exports = ext.isActive ? ext.exports : await ext.activate();
     return exports as any;
 }
@@ -74,7 +74,7 @@ suite('Query Editor Integration Tests', () => {
         const editor = await vscode.window.showTextDocument(doc);
 
         // Select the second line (line 1, chars 0-23)
-        await vscode.commands.executeCommand('msKustoExplorer.selectQuery', 1, 0, 1, 23);
+        await vscode.commands.executeCommand('kustoTraceTools.selectQuery', 1, 0, 1, 23);
 
         assert.strictEqual(editor.selection.start.line, 1);
         assert.strictEqual(editor.selection.start.character, 0);
@@ -90,7 +90,7 @@ suite('Query Editor Integration Tests', () => {
         const editor = await vscode.window.showTextDocument(doc);
 
         // Select with end at line 2, column 0 — should adjust to end of line 1
-        await vscode.commands.executeCommand('msKustoExplorer.selectQuery', 0, 0, 2, 0);
+        await vscode.commands.executeCommand('kustoTraceTools.selectQuery', 0, 0, 2, 0);
 
         assert.strictEqual(editor.selection.start.line, 0);
         assert.strictEqual(editor.selection.start.character, 0);
@@ -141,7 +141,7 @@ suite('Query Editor Integration Tests', () => {
         const historyCountBefore = historyManager.getEntries().length;
 
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.runQuery');
+            await vscode.commands.executeCommand('kustoTraceTools.runQuery');
         } finally {
             (server as any).getQueryRange = originalGetQueryRange;
             (server as any).runQuery = originalRunQuery;
@@ -173,7 +173,7 @@ suite('Query Editor Integration Tests', () => {
 
         const historyCountBefore = historyManager.getEntries().length;
 
-        await vscode.commands.executeCommand('msKustoExplorer.runQuery');
+        await vscode.commands.executeCommand('kustoTraceTools.runQuery');
 
         const historyCountAfter = historyManager.getEntries().length;
         assert.strictEqual(
@@ -208,7 +208,7 @@ suite('Query Editor Integration Tests', () => {
 
         try {
             // Pass explicit range for line 2 — skips getQueryRange call
-            await vscode.commands.executeCommand('msKustoExplorer.runQuery', 1, 0, 1, 20);
+            await vscode.commands.executeCommand('kustoTraceTools.runQuery', 1, 0, 1, 20);
         } finally {
             (server as any).runQuery = originalRunQuery;
         }
@@ -228,7 +228,7 @@ suite('Query Editor Integration Tests', () => {
         await vscode.window.showTextDocument(doc);
 
         const originalRunQuery = server.runQuery.bind(server);
-        const resultsConfig = vscode.workspace.getConfiguration('msKustoExplorer.results');
+        const resultsConfig = vscode.workspace.getConfiguration('kustoTraceTools.results');
         const originalDisplay = resultsConfig.inspect<string>('display')?.globalValue;
         const originalEditorMode = resultsConfig.inspect<string>('editorMode')?.globalValue;
         const pending: Array<(value: RunQueryResult) => void> = [];
@@ -251,9 +251,9 @@ suite('Query Editor Integration Tests', () => {
             await resultsConfig.update('display', 'beside', vscode.ConfigurationTarget.Global);
             await resultsConfig.update('editorMode', 'newTab', vscode.ConfigurationTarget.Global);
 
-            const firstRun = vscode.commands.executeCommand('msKustoExplorer.runQuery', 0, 0, 0, 20);
+            const firstRun = vscode.commands.executeCommand('kustoTraceTools.runQuery', 0, 0, 0, 20);
             await waitUntil(() => pending.length === 1);
-            const secondRun = vscode.commands.executeCommand('msKustoExplorer.runQuery', 0, 0, 0, 20);
+            const secondRun = vscode.commands.executeCommand('kustoTraceTools.runQuery', 0, 0, 0, 20);
             await waitUntil(() => pending.length === 2);
 
             // Complete in reverse start order to exercise overlapping result
@@ -303,7 +303,7 @@ suite('Query Editor Integration Tests', () => {
         });
 
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.formatQuery');
+            await vscode.commands.executeCommand('kustoTraceTools.formatQuery');
         } finally {
             (server as any).getQueryRange = originalGetQueryRange;
             provider.dispose();

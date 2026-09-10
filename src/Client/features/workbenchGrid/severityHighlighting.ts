@@ -23,7 +23,7 @@ const settingNames: Record<SeverityLevel, string> = {
 };
 
 export function getSeverityColors(): Record<SeverityLevel, string> {
-    const config = vscode.workspace.getConfiguration('msKustoExplorer.results.severityColors');
+    const config = vscode.workspace.getConfiguration('kustoTraceTools.results.severityColors');
     return Object.fromEntries(([1, 2, 3, 4, 5] as SeverityLevel[]).map(level => [
         level,
         config.get<string>(settingNames[level], defaultSeverityColors[level]),

@@ -1,10 +1,22 @@
-# Kusto Explorer (VS Code Extension)
+# KustoTraceTools (VS Code Extension)
 
 Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases and results, and use Copilot to help author and diagnose your queries. Works on Windows, macOS, and Linux.
 
+## Install locally
+
+In VS Code, open the Extensions view and select **… → Install from VSIX…**, then choose `kustotracetools-1.0.1.vsix`. Reload VS Code if prompted. Alternatively:
+
+```sh
+code --install-extension /path/to/kustotracetools-1.0.1.vsix
+```
+
+This package installs separately as `local.kustotracetools`, with its own connections, history, scratch pads, and `kustoTraceTools.*` settings. Existing Kusto Explorer data is not migrated automatically. Disable the original extension while using KustoTraceTools to avoid duplicate KQL language features and overlapping keyboard shortcuts.
+
+KustoTraceTools is a locally maintained fork of Microsoft's Kusto Explorer for VS Code. It is not a Microsoft-published release and is not available from the Marketplace.
+
 ## Get Started
 
-1. Select the **Kusto Explorer** icon in the VS Code Activity Bar
+1. Select the **KustoTraceTools** icon in the VS Code Activity Bar
 2. Use an existing scratch pad (already open) or create a `.kql` file
 3. Connect the query document to a Kusto cluster and database (while the document has focus):
    - Add a cluster connection in the **Connections** sidebar (if it doesn't exist yet)
@@ -65,8 +77,8 @@ Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases a
 
 ### Copilot Integration
 
-- Ask Copilot to help write, run, and diagnose your Kusto queries
-- Copy a query run's CID and ask Copilot to use `#kustoQueryResults` to analyze its saved History results without rerunning the query
+- Ask `@kustotracetools` in Copilot to help write, run, and diagnose your Kusto queries
+- Copy a query run's CID and ask Copilot to use `#kustoTraceToolsQueryResults` to analyze its saved History results without rerunning the query
 
 ## Requirements
 
@@ -74,6 +86,5 @@ Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases a
 
 ## Links
 
-- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=ms-kusto.kusto-explorer-vscode) — install the extension
-- [GitHub Repository](https://github.com/microsoft/Kusto-Explorer-VsCode) — source code, issues, and contributions
+- [Upstream GitHub Repository](https://github.com/microsoft/Kusto-Explorer-VsCode) — original project source code
 - [KQL Reference](https://learn.microsoft.com/en-us/kusto/query/) — Kusto Query Language documentation

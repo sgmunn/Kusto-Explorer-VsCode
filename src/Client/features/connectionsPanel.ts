@@ -74,7 +74,7 @@ export class ConnectionsPanel {
     connections.loadServersAndGroups();
 
     // Create tree view with drag and drop support
-    this.treeView = vscode.window.createTreeView('msKustoExplorer_connections', {
+    this.treeView = vscode.window.createTreeView('kustoTraceTools_connections', {
         treeDataProvider: this.connectionsProvider,
         showCollapseAll: true,
         dragAndDropController: new KustoDragAndDropController(connections, () => { this.isDragging = true; setTimeout(() => { this.isDragging = false; }, 100); }) // delay resets drag state after tree selection events settle
@@ -122,7 +122,7 @@ export class ConnectionsPanel {
     // Set initial context for view visibility
     const initialEditor = vscode.window.activeTextEditor;
     const initialIsKusto = initialEditor && initialEditor.document.languageId === 'kusto';
-    vscode.commands.executeCommand('setContext', 'msKustoExplorer.hasActiveDocument', initialIsKusto);
+    vscode.commands.executeCommand('setContext', 'kustoTraceTools.hasActiveDocument', initialIsKusto);
 
     // Handle tree selection changes - update document connection when user clicks
     context.subscriptions.push(
@@ -470,7 +470,7 @@ export class ConnectionsPanel {
         // containing view to become visible, which would steal focus away from whatever
         // activity bar panel (e.g. Source Control) the user is currently using.
         // Selection will be re-applied via the onDidChangeVisibility handler when the
-        // user navigates back to the Kusto Explorer panel.
+        // user navigates back to the KustoTraceTools panel.
         if (!this.treeView.visible) {
             return;
         }
@@ -753,7 +753,7 @@ class ServerTreeItem extends vscode.TreeItem {
         this.iconPath = getServerKindIcon(serverKind);
         // Set command to prevent auto-expand on click (selection still fires)
         this.command = {
-            command: 'msKustoExplorer.selectServer',
+            command: 'kustoTraceTools.selectServer',
             title: 'Select Server',
             arguments: [this]
         };
@@ -771,7 +771,7 @@ class DatabaseTreeItem extends vscode.TreeItem {
         this.iconPath = new vscode.ThemeIcon('database');
         // Set command to prevent auto-expand on click (selection still fires)
         this.command = {
-            command: 'msKustoExplorer.selectDatabase',
+            command: 'kustoTraceTools.selectDatabase',
             title: 'Select Database',
             arguments: [this]
         };
@@ -829,7 +829,7 @@ class TableTreeItem extends vscode.TreeItem {
             this.tooltip = tableInfo.description;
         }
         // Set command to prevent auto-expand on click/drag (selection still fires)
-        this.command = { command: 'msKustoExplorer.selectEntity', title: 'Select Entity', arguments: [this] };
+        this.command = { command: 'kustoTraceTools.selectEntity', title: 'Select Entity', arguments: [this] };
     }
 }
 
@@ -849,7 +849,7 @@ class ExternalTableTreeItem extends vscode.TreeItem {
             this.tooltip = tableInfo.description;
         }
         // Set command to prevent auto-expand on click/drag (selection still fires)
-        this.command = { command: 'msKustoExplorer.selectEntity', title: 'Select Entity', arguments: [this] };
+        this.command = { command: 'kustoTraceTools.selectEntity', title: 'Select Entity', arguments: [this] };
     }
 }
 
@@ -869,7 +869,7 @@ class MaterializedViewTreeItem extends vscode.TreeItem {
             this.tooltip = viewInfo.description;
         }
         // Set command to prevent auto-expand on click/drag (selection still fires)
-        this.command = { command: 'msKustoExplorer.selectEntity', title: 'Select Entity', arguments: [this] };
+        this.command = { command: 'kustoTraceTools.selectEntity', title: 'Select Entity', arguments: [this] };
     }
 }
 
@@ -927,7 +927,7 @@ class EntityGroupTreeItem extends vscode.TreeItem {
             this.tooltip = groupInfo.description;
         }
         // Set command to prevent auto-expand on click/drag (selection still fires)
-        this.command = { command: 'msKustoExplorer.selectEntity', title: 'Select Entity', arguments: [this] };
+        this.command = { command: 'kustoTraceTools.selectEntity', title: 'Select Entity', arguments: [this] };
     }
 }
 
@@ -1571,7 +1571,7 @@ class KustoConnectionsProvider implements vscode.TreeDataProvider<KustoTreeItem>
 /**
  * Custom MIME type for dragging entity metadata from the tree.
  */
-const ENTITY_DRAG_MIME = 'application/vnd.msKustoExplorer.entity';
+const ENTITY_DRAG_MIME = 'application/vnd.kustoTraceTools.entity';
 
 /**
  * Drag and drop controller for moving servers between groups

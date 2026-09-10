@@ -154,7 +154,7 @@ class DataTableView implements IDataTableView {
         this.server = server;
         this.clipboard = clipboard;
         this.table = table;
-        const configuredPageSize = workspace.getConfiguration('msKustoExplorer.results').get<number>('pageSize', 1000);
+        const configuredPageSize = workspace.getConfiguration('kustoTraceTools.results').get<number>('pageSize', 1000);
         this.pageSize = Number.isInteger(configuredPageSize) && configuredPageSize > 0 ? configuredPageSize : 1000;
         this.viewState = view;
         this.token = makeToken();

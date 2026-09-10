@@ -42,7 +42,7 @@ export class Importer {
      */
     async promptImportIfAvailable(): Promise<boolean> {
         // Only prompt if user has no connections and hasn't suppressed the prompt
-        if (vscode.workspace.getConfiguration('msKustoExplorer').get<boolean>(SUPPRESS_IMPORT_SETTING)) {
+        if (vscode.workspace.getConfiguration('kustoTraceTools').get<boolean>(SUPPRESS_IMPORT_SETTING)) {
             return true;
         }
 
@@ -78,7 +78,7 @@ export class Importer {
             }
             return true;
         } else if (choice === "Don't Ask Again") {
-            await vscode.workspace.getConfiguration('msKustoExplorer').update(SUPPRESS_IMPORT_SETTING, true, vscode.ConfigurationTarget.Global);
+            await vscode.workspace.getConfiguration('kustoTraceTools').update(SUPPRESS_IMPORT_SETTING, true, vscode.ConfigurationTarget.Global);
             return true;
         }
         // Dismissed (no choice) — caller may re-prompt later

@@ -89,8 +89,8 @@ describe('HistoryManager', () => {
             const mgr = createManager();
             const first = makeResultData('first');
             const second = makeResultData('second');
-            first.clientRequestId = 'KustoExplorerVsCode;11111111-1111-1111-1111-111111111111';
-            second.clientRequestId = 'KustoExplorerVsCode;22222222-2222-2222-2222-222222222222';
+            first.clientRequestId = 'KustoTraceTools;11111111-1111-1111-1111-111111111111';
+            second.clientRequestId = 'KustoTraceTools;22222222-2222-2222-2222-222222222222';
             await mgr.addHistoryEntry(first);
             await mgr.addHistoryEntry(second);
 
@@ -105,7 +105,7 @@ describe('HistoryManager', () => {
             const mgr = createManager();
             const first = makeResultData('first');
             const second = makeResultData('second');
-            first.clientRequestId = 'KustoExplorerVsCode;duplicate';
+            first.clientRequestId = 'KustoTraceTools;duplicate';
             second.clientRequestId = first.clientRequestId;
             await mgr.addHistoryEntry(first);
             await mgr.addHistoryEntry(second);
@@ -159,8 +159,8 @@ describe('HistoryManager', () => {
             const mgr = createManager();
             const first = makeResultData('same query');
             const second = makeResultData('same query');
-            first.clientRequestId = 'KustoExplorerVsCode;11111111-1111-1111-1111-111111111111';
-            second.clientRequestId = 'KustoExplorerVsCode;22222222-2222-2222-2222-222222222222';
+            first.clientRequestId = 'KustoTraceTools;11111111-1111-1111-1111-111111111111';
+            second.clientRequestId = 'KustoTraceTools;22222222-2222-2222-2222-222222222222';
 
             const [firstUri, secondUri] = await Promise.all([
                 mgr.addHistoryEntry(first),

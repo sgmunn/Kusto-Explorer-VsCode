@@ -259,7 +259,7 @@ export class ImportManager {
             // Associate the connection with the new scratch pad
             if (cluster) {
                 try {
-                    const scratchUri = `msKustoExplorer-scratch:/${finalName}`;
+                    const scratchUri = `kustoTraceTools-scratch:/${finalName}`;
                     await this.connections.setDocumentConnection(scratchUri, cluster, database);
                 } catch {
                     // Connection association is best-effort; don't block import

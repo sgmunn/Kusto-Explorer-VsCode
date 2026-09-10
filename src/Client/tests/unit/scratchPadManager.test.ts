@@ -18,7 +18,7 @@ function createMockContext(storageDir: string): vscode.ExtensionContext {
 
 /** Builds a vscode.Uri-like object for a scratch pad filename. */
 function scratchUri(fileName: string): vscode.Uri {
-    return { path: `/${fileName}`, toString: () => `msKustoExplorer-scratch:/${fileName}` } as unknown as vscode.Uri;
+    return { path: `/${fileName}`, toString: () => `kustoTraceTools-scratch:/${fileName}` } as unknown as vscode.Uri;
 }
 
 describe('ScratchPadManager', () => {

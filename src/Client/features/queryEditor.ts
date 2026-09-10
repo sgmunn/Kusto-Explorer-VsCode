@@ -19,8 +19,8 @@ import type { QueryParameterProfiles } from './queryParameterProfiles';
 import { runCancellableQuery } from './queryCancellation';
 
 const PASTE_KIND = vscode.DocumentDropOrPasteEditKind.Text.append('kusto');
-const QUERY_RUNNING_CONTEXT_KEY = 'msKustoExplorer.queryRunning';
-const ACTIVE_QUERY_RUNNING_CONTEXT_KEY = 'msKustoExplorer.activeDocumentQueryRunning';
+const QUERY_RUNNING_CONTEXT_KEY = 'kustoTraceTools.queryRunning';
+const ACTIVE_QUERY_RUNNING_CONTEXT_KEY = 'kustoTraceTools.activeDocumentQueryRunning';
 const MIN_QUERY_RUNNING_INDICATOR_MS = 500;
 
 /**
@@ -35,7 +35,7 @@ function rangeFromArgs(startLine?: number, startChar?: number, endLine?: number,
 }
 
 function createClientRequestId(): string {
-    return `KustoExplorerVsCode;${crypto.randomUUID()}`;
+    return `KustoTraceTools;${crypto.randomUUID()}`;
 }
 
 function formatRunTimestamp(timestamp: string): string {
@@ -760,7 +760,7 @@ class KustoCodeLensProvider implements vscode.CodeLensProvider {
 
             lenses.push(new vscode.CodeLens(vsRange, {
                 title: '⬚ Select',
-                command: 'msKustoExplorer.selectQuery',
+                command: 'kustoTraceTools.selectQuery',
                 tooltip: 'Select this query',
                 arguments: [range.start.line, range.start.character, range.end.line, range.end.character]
             }));
@@ -770,14 +770,14 @@ class KustoCodeLensProvider implements vscode.CodeLensProvider {
                 const isQueryRangeRunning = this.runningQueryRangeKeys.has(getQueryRangeKey(document.uri.toString(), range));
                 lenses.push(new vscode.CodeLens(vsRange, {
                     title: isQueryRangeRunning ? '$(sync~spin) Running' : '▶ Run',
-                    command: isQueryRangeRunning ? 'msKustoExplorer.runQuery.running' : 'msKustoExplorer.runQuery',
+                    command: isQueryRangeRunning ? 'kustoTraceTools.runQuery.running' : 'kustoTraceTools.runQuery',
                     tooltip: isQueryRangeRunning ? 'This Kusto query is running' : 'Run this query',
                     arguments: [range.start.line, range.start.character, range.end.line, range.end.character]
                 }));
                 if (this.cancellableQueryRangeKeys.has(getQueryRangeKey(document.uri.toString(), range))) {
                     lenses.push(new vscode.CodeLens(vsRange, {
                         title: '$(debug-stop) Cancel',
-                        command: 'msKustoExplorer.cancelQuery',
+                        command: 'kustoTraceTools.cancelQuery',
                         tooltip: 'Cancel the most recent run of this query',
                         arguments: [document.uri, range.start.line, range.start.character, range.end.line, range.end.character]
                     }));
@@ -786,7 +786,7 @@ class KustoCodeLensProvider implements vscode.CodeLensProvider {
 
             lenses.push(new vscode.CodeLens(vsRange, {
                 title: '📋 Copy',
-                command: 'msKustoExplorer.copyQueryTransparent',
+                command: 'kustoTraceTools.copyQueryTransparent',
                 tooltip: 'Copy this query with syntax highlighting',
                 arguments: [range.start.line, range.start.character, range.end.line, range.end.character]
             }));
@@ -794,7 +794,7 @@ class KustoCodeLensProvider implements vscode.CodeLensProvider {
             if (!isEntityDefinition) {
                 lenses.push(new vscode.CodeLens(vsRange, {
                     title: '✎ Format',
-                    command: 'msKustoExplorer.formatQuery',
+                    command: 'kustoTraceTools.formatQuery',
                     tooltip: 'Format this query',
                     arguments: [range.start.line, range.start.character, range.end.line, range.end.character]
                 }));
@@ -805,14 +805,14 @@ class KustoCodeLensProvider implements vscode.CodeLensProvider {
                 if (lastRun) {
                     lenses.push(new vscode.CodeLens(vsRange, {
                         title: '📊 Results',
-                        command: 'msKustoExplorer.showResults',
+                        command: 'kustoTraceTools.showResults',
                         tooltip: 'Show results from history for this query',
                         arguments: [range.start.line, range.start.character]
                     }));
 
                     lenses.push(new vscode.CodeLens(vsRange, {
                         title: getLastRunTitle(lastRun) ?? 'Last run',
-                        command: 'msKustoExplorer.noop',
+                        command: 'kustoTraceTools.noop',
                         tooltip: lastRun.clientRequestId
                             ? `Client request id: ${lastRun.clientRequestId}`
                             : 'Last query execution details'
@@ -821,7 +821,7 @@ class KustoCodeLensProvider implements vscode.CodeLensProvider {
                     if (lastRun.clientRequestId) {
                         lenses.push(new vscode.CodeLens(vsRange, {
                             title: '$(copy) Copy CID',
-                            command: 'msKustoExplorer.copyClientRequestId',
+                            command: 'kustoTraceTools.copyClientRequestId',
                             tooltip: 'Copy the last run client request id',
                             arguments: [lastRun.clientRequestId]
                         }));
@@ -936,7 +936,7 @@ function activateQuerySeparators(context: vscode.ExtensionContext, server: IServ
                 e => e.document.uri.toString() === result.uri
             );
 
-            const config = vscode.workspace.getConfiguration('msKustoExplorer');
+            const config = vscode.workspace.getConfiguration('kustoTraceTools');
             const enableSeparators = config.get<boolean>('editor.showQuerySeparators', true);
 
             const firstEditor = editors[0];

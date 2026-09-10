@@ -968,7 +968,7 @@ public class Server : LspServer, ILogger, ISettingSource, IStorage, IAuthenticat
     /// <summary>
     /// Custom URI scheme for virtual entity definition documents.
     /// </summary>
-    private const string EntityDefinitionScheme = "kusto-entity";
+    private const string EntityDefinitionScheme = "kustotracetools-entity";
 
     public override async Task<LSP.SumType<LSP.Location, LSP.Location[]>?> OnTextDocumentDefinitionAsync(LSP.TextDocumentPositionParams @params, CancellationToken cancellationToken)
     {
@@ -1126,7 +1126,7 @@ public class Server : LspServer, ILogger, ISettingSource, IStorage, IAuthenticat
 
     /// <summary>
     /// Creates a virtual document URI for an entity definition.
-    /// Format: kusto-entity://cluster/database/entityType/entityName.kql
+    /// Format: kustotracetools-entity://cluster/database/entityType/entityName.kql
     /// </summary>
     private static Uri CreateEntityDefinitionUri(string cluster, string database, EntityType entityType, string entityName)
     {

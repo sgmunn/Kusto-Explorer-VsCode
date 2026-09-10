@@ -1,6 +1,5 @@
-# Kusto Explorer for VS Code
+# KustoTraceTools for VS Code
 
-[![VS Marketplace](https://img.shields.io/badge/VS%20Marketplace-Kusto%20Explorer-blue?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=ms-kusto.kusto-explorer-vscode)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases and results, and use Copilot to help author and diagnose your queries. Works on Windows, macOS, and Linux.
@@ -15,23 +14,25 @@ Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases a
 - **Scratch pads** — jot down queries without creating files
 - **Query history** — revisit previously executed queries and results
 
-## Install
+## Install locally
 
-**[Install from the VS Code Marketplace →](https://marketplace.visualstudio.com/items?itemName=ms-kusto.kusto-explorer-vscode)**
+Install the packaged `kustotracetools-1.0.1.vsix` from VS Code: open the Extensions view, select **… → Install from VSIX…**, and choose the file. Reload VS Code if prompted.
 
-Or search for **"Kusto Explorer"** in the VS Code Extensions view (`Ctrl+Shift+X`).
-
-Alternatively, download the `.vsix` from [GitHub Releases](https://github.com/microsoft/Kusto-Explorer-VsCode/releases) and install manually:
+Or use the VS Code command line:
 
 ```sh
-code --install-extension <vsix-file>
+code --install-extension /path/to/kustotracetools-1.0.1.vsix
 ```
+
+KustoTraceTools is a separate local extension (`local.kustotracetools`). It has its own connections, history, scratch pads, and `kustoTraceTools.*` settings; existing Kusto Explorer data is not migrated automatically. Disable the original Kusto Explorer extension while using KustoTraceTools to avoid duplicate KQL language features and overlapping keyboard shortcuts. Existing `.kql` and `.kqr` files remain supported.
+
+This is a locally maintained fork of [Microsoft's Kusto Explorer for VS Code](https://github.com/microsoft/Kusto-Explorer-VsCode), not a Microsoft-published release. The `local` publisher identifies the local package; this build is not available from the Marketplace.
 
 ## Getting Started
 
 For a full walkthrough of the extension's features, see the [User Guide](src/Client/README.md).
 
-1. Select the **Kusto Explorer** icon in the VS Code Activity Bar
+1. Select the **KustoTraceTools** icon in the VS Code Activity Bar
 2. Use an existing scratch pad (already open) or create a `.kql` file
 3. Connect the query document to a Kusto cluster and database (while the document has focus):
    - Add a cluster connection in the **Connections** sidebar (if it doesn't exist yet)

@@ -12,7 +12,7 @@ public static class FormatSettings
         new Setting<int>("editor.tabSize", 4);
 
     public static readonly Setting<bool> InsertMissingTokens = 
-        new Setting<bool>("msKustoExplorer.format.insertMissingTokens", false);
+        new Setting<bool>("kustoTraceTools.format.insertMissingTokens", false);
 
     public static ImmutableDictionary<string, BrackettingStyle> BrackettingStyles { get; } =
         new Dictionary<string, BrackettingStyle>
@@ -25,27 +25,27 @@ public static class FormatSettings
 
     public static readonly Setting<BrackettingStyle> DefaultBrackettingStyle = 
         new StringMappedSetting<BrackettingStyle>(
-            "msKustoExplorer.format.bracketStyle", BrackettingStyle.Vertical, BrackettingStyles);
+            "kustoTraceTools.format.bracketStyle", BrackettingStyle.Vertical, BrackettingStyles);
 
     public static readonly Setting<BrackettingStyle> SchemaBrackettingStyle = 
         new StringMappedSetting<BrackettingStyle>(
-            "msKustoExplorer.format.schemaBracketStyle", BrackettingStyle.None, BrackettingStyles);
+            "kustoTraceTools.format.schemaBracketStyle", BrackettingStyle.None, BrackettingStyles);
 
     public static readonly Setting<BrackettingStyle> DataTableBrackettingStyle =
         new StringMappedSetting<BrackettingStyle>(
-            "msKustoExplorer.format.dataTableBracketStyle", BrackettingStyle.Vertical, BrackettingStyles);
+            "kustoTraceTools.format.dataTableBracketStyle", BrackettingStyle.Vertical, BrackettingStyles);
 
     public static readonly Setting<BrackettingStyle> FunctionBodyBrackettingStyle =
         new StringMappedSetting<BrackettingStyle>(
-            "msKustoExplorer.format.functionBodyBracketStyle", BrackettingStyle.Vertical, BrackettingStyles);
+            "kustoTraceTools.format.functionBodyBracketStyle", BrackettingStyle.Vertical, BrackettingStyles);
 
     public static readonly Setting<BrackettingStyle> FunctionParameterBrackettingStyle =
         new StringMappedSetting<BrackettingStyle>(
-            "msKustoExplorer.format.functionParameterBracketStyle", BrackettingStyle.None, BrackettingStyles);
+            "kustoTraceTools.format.functionParameterBracketStyle", BrackettingStyle.None, BrackettingStyles);
 
     public static readonly Setting<BrackettingStyle> FunctionArgumentBrackettingStyle =
         new StringMappedSetting<BrackettingStyle>(
-            "msKustoExplorer.format.functionArgumentBracketStyle", BrackettingStyle.None, BrackettingStyles);
+            "kustoTraceTools.format.functionArgumentBracketStyle", BrackettingStyle.None, BrackettingStyles);
 
     public static ImmutableDictionary<string, PlacementStyle> PlacementStyles { get; } =
         new Dictionary<string, PlacementStyle>
@@ -59,19 +59,19 @@ public static class FormatSettings
 
     public static readonly Setting<PlacementStyle> PipeOperatorPlacementStyle =
         new StringMappedSetting<PlacementStyle>(
-            "msKustoExplorer.format.pipeOperatorPlacementStyle", PlacementStyle.Smart, PlacementStyles);
+            "kustoTraceTools.format.pipeOperatorPlacementStyle", PlacementStyle.Smart, PlacementStyles);
 
     public static readonly Setting<PlacementStyle> ExpressionPlacementStyle =
         new StringMappedSetting<PlacementStyle>(
-            "msKustoExplorer.format.expressionListPlacementStyle", PlacementStyle.Smart, PlacementStyles);
+            "kustoTraceTools.format.expressionListPlacementStyle", PlacementStyle.Smart, PlacementStyles);
 
     public static readonly Setting<PlacementStyle> StatementPlacementStyle =
         new StringMappedSetting<PlacementStyle>(
-            "msKustoExplorer.format.statementListPlacementStyle", PlacementStyle.Smart, PlacementStyles);
+            "kustoTraceTools.format.statementListPlacementStyle", PlacementStyle.Smart, PlacementStyles);
 
     public static readonly Setting<PlacementStyle> SemicolonPlacementStyle =
         new StringMappedSetting<PlacementStyle>(
-            "msKustoExplorer.format.semicolonPlacementStyle", PlacementStyle.None, PlacementStyles);
+            "kustoTraceTools.format.semicolonPlacementStyle", PlacementStyle.None, PlacementStyles);
 
     public static ImmutableDictionary<string, SpacingStyle> SpacingStyles { get; } =
         new Dictionary<string, SpacingStyle>
@@ -95,11 +95,11 @@ public static class FormatSettings
 
     private static Setting<SpacingStyle> Spacing(string suffix, SpacingStyle defaultValue) =>
         new StringMappedSetting<SpacingStyle>(
-            "msKustoExplorer.format." + suffix, defaultValue, SpacingStyles);
+            "kustoTraceTools.format." + suffix, defaultValue, SpacingStyles);
 
     private static Setting<DualSpacingStyle> DualSpacing(string suffix, DualSpacingStyle defaultValue) =>
         new StringMappedSetting<DualSpacingStyle>(
-            "msKustoExplorer.format." + suffix, defaultValue, DualSpacingStyles);
+            "kustoTraceTools.format." + suffix, defaultValue, DualSpacingStyles);
 
     public static readonly Setting<SpacingStyle> GeneralSpacing =
         Spacing("generalSpacing", SpacingStyle.One);

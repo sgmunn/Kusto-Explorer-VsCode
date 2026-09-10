@@ -70,7 +70,7 @@ async function acquireDotnetFromExtension(): Promise<string | undefined> {
         // Use the dotnet.acquire command to acquire the runtime
         const result = await vscode.commands.executeCommand<IDotnetAcquireResult>(
             'dotnet.acquire',
-            { version: '10.0', requestingExtensionId: 'ms-kusto.kusto-explorer-vscode' }
+            { version: '10.0', requestingExtensionId: 'local.kustotracetools' }
         );
         
         if (result?.dotnetPath) {
@@ -91,7 +91,7 @@ async function acquireDotnetFromExtension(): Promise<string | undefined> {
  * @returns The path to the dotnet executable, or undefined if not available.
  */
 async function getDotnetPath(): Promise<string | undefined> {
-    const config = vscode.workspace.getConfiguration('msKustoExplorer');
+    const config = vscode.workspace.getConfiguration('kustoTraceTools');
     const useSystemDotnet = config.get<boolean>('runtime.useSystemDotnet', true);
 
     // try system dotnet first (if enabled)
@@ -134,7 +134,7 @@ export async function activate(channel: vscode.OutputChannel): Promise<string | 
 
     if (!dotnetPath) {
         const action = await vscode.window.showErrorMessage(
-            'Kusto Explorer requires .NET Runtime 10.0 or later to be installed.',
+            'KustoTraceTools requires .NET Runtime 10.0 or later to be installed.',
             'Download .NET',
             'Dismiss'
         );

@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document explains how the Kusto Explorer for VS Code extension is put together: its major
+This document explains how the KustoTraceTools extension is put together: its major
 components, how they communicate, and the design intent behind the structure. It is aimed at
 contributors who need to understand *why* the code is shaped the way it is before changing it.
 
@@ -194,9 +194,9 @@ Features are grouped by responsibility. Key ones:
 | **Query editing** | `queryEditor.ts`, `markdown.ts` | Run/format/copy queries; CodeLens-driven selection; paste transforms; document schema refresh. |
 | **Results** | `resultsViewer.ts`, `dataTableProvider.ts`, `activityTree.ts`, `webview.ts`, `html.ts`, `tsv.ts` | Display query results in webviews; tabular and activity-structured grids (`simple-datatables`); copy/export; drag-and-drop as `datatable` expressions. |
 | **Charts** | `chartProvider.ts`, `compositeChartProvider.ts`, `chartEditorProvider.ts`, `plotlyChartProvider.ts`, `graphChartProvider.ts`, `timePivotChartProvider.ts` | Render and edit charts from results; save as `.kqr`; copy as image. |
-| **Scratch pads** | `scratchPadManager.ts`, `scratchPadPanel.ts` | In-memory `.kql` documents (custom `kusto-scratchpad:` scheme) that need no file on disk. |
+| **Scratch pads** | `scratchPadManager.ts`, `scratchPadPanel.ts` | In-memory `.kql` documents (custom `kustoTraceTools-scratch:` scheme) that need no file on disk. |
 | **History** | `historyManager.ts`, `historyPanel.ts` | Record executed queries + results and let users revisit them. |
-| **Entities** | `entityDefinitionProvider.ts` | Virtual read-only documents (`kusto-entity:` scheme) showing an entity's `CREATE` statement for go-to-definition. |
+| **Entities** | `entityDefinitionProvider.ts` | Virtual read-only documents (`kustotracetools-entity:` scheme) showing an entity's `CREATE` statement for go-to-definition. |
 | **Import** | `importer.ts`, `importManager.ts` | Import connections / scratch pads from desktop Kusto Explorer. |
 | **Copilot** | `copilot.ts` | Registers language-model tools so Copilot can read schema, run, and diagnose queries. |
 | **Infra** | `server.ts`, `dotnet.ts`, `clipboard.ts`, `kustoLiteral.ts` | Server seam; .NET runtime discovery; clipboard; KQL literal/identifier helpers. |
@@ -322,7 +322,7 @@ custom-editor document. The document URI owns its webview, grids, charts, and wr
 overlapping completions cannot redirect one run's presentation changes into another run's file.
 
 The bottom Results panel is deliberately different: it is an ephemeral latest-completion surface.
-When `msKustoExplorer.results.editorMode` is `reuse`, editor results also use the legacy singleton
+When `kustoTraceTools.results.editorMode` is `reuse`, editor results also use the legacy singleton
 surface and therefore replace one another. The default `newTab` mode should be used whenever runs
 may overlap. Query errors follow the destination policy: editor destinations receive an independent
 error tab, while panel errors replace the panel contents.
@@ -369,10 +369,10 @@ concurrent edits/loads don't race.
 - **Persistence boundaries.** The client owns storage; the server borrows it through
   `kusto/getData`/`kusto/setData` → `globalState`. Per-document state goes in `workspaceState`;
   cross-workspace state goes in `globalState`.
-- **Custom URI schemes.** `kusto-scratchpad:` (unsaved query docs) and `kusto-entity:` (virtual
+- **Custom URI schemes.** `kustoTraceTools-scratch:` (unsaved query docs) and `kustotracetools-entity:` (virtual
   entity-definition docs) are registered as `TextDocumentContentProvider`s and included in the LSP
   `documentSelector`, so language features work in them too.
-- **Settings.** All user settings are under the `msKustoExplorer.*` namespace; the server reads them
+- **Settings.** All user settings are under the `kustoTraceTools.*` namespace; the server reads them
   over LSP `workspace/configuration` through `OptionsManager`.
 - **Webview house style.** Vanilla HTML strings + inline scripts + `acquireVsCodeApi()` message
   passing + document-level event delegation; CDN libraries, no bundler for webview content.

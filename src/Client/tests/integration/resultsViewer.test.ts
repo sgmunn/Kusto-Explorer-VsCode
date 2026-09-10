@@ -10,7 +10,7 @@ import type { ResultData } from '../../features/server';
 
 /** Get the extension's exported ResultsViewer instance. */
 async function getResultsViewer(): Promise<ResultsViewer> {
-    const ext = vscode.extensions.getExtension('ms-kusto.kusto-explorer-vscode')!;
+    const ext = vscode.extensions.getExtension('local.kustotracetools')!;
     const exports = ext.isActive ? ext.exports : await ext.activate();
     return (exports as any).resultsViewer as ResultsViewer;
 }
@@ -87,7 +87,7 @@ suite('Results Viewer Integration Tests', () => {
         await vscode.window.showTextDocument(await vscode.workspace.openTextDocument({ language: 'kusto', content: 'print Value=1' }));
         // Resolve the real view before displaying results so this regression does
         // not depend on the separate first-open panel readiness race.
-        await vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
+        await vscode.commands.executeCommand('kustoTraceTools_resultsView.focus');
         const viewer = resultsViewer as unknown as { resultsPanel: vscode.WebviewView | undefined };
         const deadline = Date.now() + 5000;
         while (!viewer.resultsPanel && Date.now() < deadline) {
@@ -113,7 +113,7 @@ suite('Results Viewer Integration Tests', () => {
 
     test('Results badge clears an old error after a retried empty render', async () => {
         await vscode.window.showTextDocument(await vscode.workspace.openTextDocument({ language: 'kusto', content: 'print Value=1' }));
-        await vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
+        await vscode.commands.executeCommand('kustoTraceTools_resultsView.focus');
         const viewer = resultsViewer as unknown as {
             resultsPanel: vscode.WebviewView;
             panelRenderRevision: number;
@@ -176,7 +176,7 @@ suite('Results Viewer Integration Tests', () => {
         const originalSaveDialog = vscode.window.showSaveDialog;
         (vscode.window as any).showSaveDialog = async () => saveUri;
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.savePanelResults');
+            await vscode.commands.executeCommand('kustoTraceTools.savePanelResults');
         } finally {
             (vscode.window as any).showSaveDialog = originalSaveDialog;
         }
@@ -209,7 +209,7 @@ suite('Results Viewer Integration Tests', () => {
 
         assert.strictEqual(resultsViewer.hasSingletonView(), false, 'Should start with no singleton');
 
-        await vscode.commands.executeCommand('msKustoExplorer.chartPanelResults');
+        await vscode.commands.executeCommand('kustoTraceTools.chartPanelResults');
 
         assert.strictEqual(resultsViewer.hasSingletonView(), true, 'Chart should open as singleton view');
 
@@ -236,7 +236,7 @@ suite('Results Viewer Integration Tests', () => {
         );
 
         // Move to main
-        await vscode.commands.executeCommand('msKustoExplorer.moveViewToMain');
+        await vscode.commands.executeCommand('kustoTraceTools.moveViewToMain');
 
         // Small delay for view state to settle
         await new Promise(r => setTimeout(r, 200));
@@ -265,7 +265,7 @@ suite('Results Viewer Integration Tests', () => {
         const originalSaveDialog = vscode.window.showSaveDialog;
         (vscode.window as any).showSaveDialog = async () => saveUri;
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.saveSingletonResults');
+            await vscode.commands.executeCommand('kustoTraceTools.saveSingletonResults');
         } finally {
             (vscode.window as any).showSaveDialog = originalSaveDialog;
         }

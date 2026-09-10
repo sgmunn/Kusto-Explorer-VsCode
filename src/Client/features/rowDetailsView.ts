@@ -8,7 +8,7 @@ import type { ResultTable } from './server';
 import type { ResultRowSelection } from './dataTableProvider';
 import { escapeHtml } from './html';
 
-export const rowDetailsViewId = 'msKustoExplorer_rowDetails';
+export const rowDetailsViewId = 'kustoTraceTools_rowDetails';
 
 const callstackNoise = [
     /System\.Threading\.Tasks\./,

@@ -10,7 +10,7 @@ import type { ServerInfo, ServerGroupInfo } from '../../features/connectionManag
 
 /** Get the extension's exported ConnectionManager instance. */
 async function getConnectionManager(): Promise<ConnectionManager> {
-    const ext = vscode.extensions.getExtension('ms-kusto.kusto-explorer-vscode')!;
+    const ext = vscode.extensions.getExtension('local.kustotracetools')!;
     const exports = ext.isActive ? ext.exports : await ext.activate();
     return (exports as any).connectionManager as ConnectionManager;
 }
@@ -82,7 +82,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showInputBox;
         (vscode.window as any).showInputBox = async () => 'https://testcluster.kusto.windows.net';
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.addServer');
+            await vscode.commands.executeCommand('kustoTraceTools.addServer');
         } finally {
             (vscode.window as any).showInputBox = original;
         }
@@ -105,7 +105,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showWarningMessage;
         (vscode.window as any).showWarningMessage = async () => 'Remove';
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.removeServer', {
+            await vscode.commands.executeCommand('kustoTraceTools.removeServer', {
                 clusterName: 'mycluster.kusto.windows.net',
                 displayName: 'mycluster',
             });
@@ -125,7 +125,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showInputBox;
         (vscode.window as any).showInputBox = async () => 'Production';
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.addServerGroup');
+            await vscode.commands.executeCommand('kustoTraceTools.addServerGroup');
         } finally {
             (vscode.window as any).showInputBox = original;
         }
@@ -148,7 +148,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showWarningMessage;
         (vscode.window as any).showWarningMessage = async () => 'Remove';
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.removeServerGroup', {
+            await vscode.commands.executeCommand('kustoTraceTools.removeServerGroup', {
                 groupInfo: { name: 'TestGroup' },
             });
         } finally {
@@ -174,7 +174,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showInputBox;
         (vscode.window as any).showInputBox = async () => 'NewDisplayName';
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.renameServer', {
+            await vscode.commands.executeCommand('kustoTraceTools.renameServer', {
                 clusterName: 'renameme.kusto.windows.net',
                 displayName: 'renameme',
             });
@@ -198,7 +198,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showInputBox;
         (vscode.window as any).showInputBox = async () => 'NewGroupName';
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.renameServerGroup', {
+            await vscode.commands.executeCommand('kustoTraceTools.renameServerGroup', {
                 groupInfo: { name: 'OldGroupName' },
             });
         } finally {
@@ -232,7 +232,7 @@ suite('Connections Panel Integration Tests', () => {
             description: 'Move to group "TargetGroup"',
         });
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.moveServer', {
+            await vscode.commands.executeCommand('kustoTraceTools.moveServer', {
                 clusterName: 'moveme.kusto.windows.net',
                 displayName: 'moveme',
             });
@@ -261,7 +261,7 @@ suite('Connections Panel Integration Tests', () => {
             description: 'Move to root level',
         });
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.moveServer', {
+            await vscode.commands.executeCommand('kustoTraceTools.moveServer', {
                 clusterName: 'moveback.kusto.windows.net',
                 displayName: 'moveback',
                 groupName: 'MyGroup',
@@ -292,7 +292,7 @@ suite('Connections Panel Integration Tests', () => {
             description: 'Move to group "GroupB"',
         });
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.moveServer', {
+            await vscode.commands.executeCommand('kustoTraceTools.moveServer', {
                 clusterName: 'between.kusto.windows.net',
                 displayName: 'between',
                 groupName: 'GroupA',
@@ -313,7 +313,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showInputBox;
         (vscode.window as any).showInputBox = async () => 'https://direct.kusto.windows.net';
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.addServerToGroup', {
+            await vscode.commands.executeCommand('kustoTraceTools.addServerToGroup', {
                 groupInfo: { name: 'DirectGroup' },
             });
         } finally {
@@ -335,7 +335,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showInputBox;
         (vscode.window as any).showInputBox = async () => 'https://new.kusto.windows.net';
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.editServer', {
+            await vscode.commands.executeCommand('kustoTraceTools.editServer', {
                 connection: 'https://old.kusto.windows.net',
                 clusterName: 'old.kusto.windows.net',
                 displayName: 'old',
@@ -357,7 +357,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showInputBox;
         (vscode.window as any).showInputBox = async () => undefined;
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.addServer');
+            await vscode.commands.executeCommand('kustoTraceTools.addServer');
         } finally {
             (vscode.window as any).showInputBox = original;
         }
@@ -377,7 +377,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showWarningMessage;
         (vscode.window as any).showWarningMessage = async () => undefined;
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.removeServer', {
+            await vscode.commands.executeCommand('kustoTraceTools.removeServer', {
                 clusterName: 'keepme.kusto.windows.net',
                 displayName: 'keepme',
             });
@@ -401,7 +401,7 @@ suite('Connections Panel Integration Tests', () => {
         const original = vscode.window.showInputBox;
         (vscode.window as any).showInputBox = async () => 'samename';
         try {
-            await vscode.commands.executeCommand('msKustoExplorer.renameServer', {
+            await vscode.commands.executeCommand('kustoTraceTools.renameServer', {
                 clusterName: 'samename.kusto.windows.net',
                 displayName: 'samename',
             });

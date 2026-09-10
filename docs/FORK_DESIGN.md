@@ -1,4 +1,4 @@
-# Kusto Explorer Results Workbench
+# KustoTraceTools Results Workbench
 
 This fork focuses on making Kusto query results practical for investigating
 large, structured diagnostic traces. The primary workflow is: run a query,
@@ -195,7 +195,7 @@ tables skip the overlay to avoid a distracting flash.
 When a result table contains a column named `level` or `severity` (matched
 case-insensitively), the workbench grid highlights rows whose value is an
 integer from 1 through 5: critical, error, warning, normal, and verbose. The
-five translucent colors are configurable under **Kusto Explorer: Results**;
+five translucent colors are configurable under **KustoTraceTools: Results**;
 an empty color leaves that level on the current theme's default row styling.
 The row metadata remains attached through sorting, filtering, and paging, and
 the stronger cell-selection color takes precedence during interaction.

@@ -22,7 +22,7 @@ import type { IWebView } from './webview';
 import { escapeHtml } from './html';
 
 /** The view type used for the custom results viewer. */
-const resultViewerViewType = 'msKustoExplorer_resultViewer';
+const resultViewerViewType = 'kustoTraceTools_resultViewer';
 
 // VS Code can retain the visible activity badge when assigned undefined.
 // Publish an explicit zero whenever the Results panel is empty.
@@ -122,7 +122,7 @@ function isDarkMode(): boolean {
  * a partial ChartOptions with only the configured defaults.
  */
 function getChartDefaults(): Partial<server.ChartOptions> {
-    const config = vscode.workspace.getConfiguration('msKustoExplorer.chart');
+    const config = vscode.workspace.getConfiguration('kustoTraceTools.chart');
     const defaults: Record<string, unknown> = {};
 
     function setBool(key: string, prop: string): void {
@@ -538,11 +538,11 @@ export class ResultsViewer {
 
         // Expose a function for showPanelHtml to wait on
         this.waitForPanelReady = async () => {
-            await vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
+            await vscode.commands.executeCommand('kustoTraceTools_resultsView.focus');
             await createPanelReadyPromise();
         };
 
-        vscode.window.registerWebviewViewProvider('msKustoExplorer_resultsView', {
+        vscode.window.registerWebviewViewProvider('kustoTraceTools_resultsView', {
             resolveWebviewView: (webviewView) => {
                 this.resultsPanel = webviewView;
                 if (resolvePanelReady) {
@@ -600,8 +600,8 @@ export class ResultsViewer {
                             this.panelActiveTabIndex = parseInt(match[1]!, 10);
                         }
                         this.panelActiveView = message.viewId;
-                        vscode.commands.executeCommand('setContext', 'msKustoExplorer.panelShowingData', message.viewId !== 'query');
-                        vscode.commands.executeCommand('setContext', 'msKustoExplorer.panelChartActive', message.viewId === 'chart');
+                        vscode.commands.executeCommand('setContext', 'kustoTraceTools.panelShowingData', message.viewId !== 'query');
+                        vscode.commands.executeCommand('setContext', 'kustoTraceTools.panelChartActive', message.viewId === 'chart');
                     }
                 });
                 webviewView.badge = emptyResultsBadge;
@@ -615,7 +615,7 @@ export class ResultsViewer {
 
         // Open the results view on start up when in panel mode
         if (getResultsDisplayLocation() === 'panel') {
-            vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
+            vscode.commands.executeCommand('kustoTraceTools_resultsView.focus');
         }
     }
 
@@ -707,7 +707,7 @@ export class ResultsViewer {
 
         this.disposeSingletonView();
         const webview = vscode.window.createWebviewPanel(
-            'msKustoExplorer_queryError',
+            'kustoTraceTools_queryError',
             'Query Error',
             { viewColumn: getSingletonViewColumn(resultsLocation), preserveFocus: resultsLocation === 'beside' },
             { enableScripts: false, retainContextWhenHidden: true }
@@ -761,15 +761,15 @@ export class ResultsViewer {
         this.lastPanelResultData = resultData;
         this.panelActiveTabIndex = 0;
         // Default to showing data (first tab is always a data tab, not query)
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.panelShowingData', true);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.panelShowingData', true);
 
         const darkMode = isDarkMode();
 
         const hasChart = !!((mode === 'chart' || mode === 'all') && getPrimaryChart(resultData));
         this.panelHasChart = hasChart;
         this.panelActiveView = hasChart ? 'chart' : 'table-0';
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.panelHasChart', hasChart);
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.panelChartActive', hasChart);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.panelHasChart', hasChart);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.panelChartActive', hasChart);
         const hasTable = !!resultData.tables.length;
 
         if (!hasTable && !hasChart) {
@@ -792,7 +792,7 @@ export class ResultsViewer {
             } else if (this.waitForPanelReady) {
                 await this.waitForPanelReady();
             } else {
-                await vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
+                await vscode.commands.executeCommand('kustoTraceTools_resultsView.focus');
             }
         }
 
@@ -838,8 +838,8 @@ export class ResultsViewer {
 
     /**
      * Orchestrates display of query results and charts based on user settings.
-     * - Results go to the bottom panel or a singleton view depending on msKustoExplorer.results.display.
-     * - Charts go inline with results or to a singleton view depending on msKustoExplorer.results.chartDisplay.
+     * - Results go to the bottom panel or a singleton view depending on kustoTraceTools.results.display.
+     * - Charts go inline with results or to a singleton view depending on kustoTraceTools.results.chartDisplay.
      * - When results are in beside/main, charts are shown as a tab in the same singleton.
      */
     async displayResults(resultData: server.ResultData | undefined): Promise<void> {
@@ -1067,7 +1067,7 @@ export class ResultsViewer {
             if (this.waitForPanelReady) {
                 await this.waitForPanelReady();
             } else {
-                await vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
+                await vscode.commands.executeCommand('kustoTraceTools_resultsView.focus');
             }
         }
 
@@ -1091,7 +1091,7 @@ export class ResultsViewer {
             if (isSingletonMode) {
                 return;
             }
-            await vscode.commands.executeCommand('msKustoExplorer_resultsView.focus');
+            await vscode.commands.executeCommand('kustoTraceTools_resultsView.focus');
             if (this.resultsPanel && renderRevision === this.panelRenderRevision) {
                 try {
                     this.resultsPanel.badge = badge;
@@ -1112,8 +1112,8 @@ export class ResultsViewer {
         this.lastPanelResultData = undefined;
         this.panelHasChart = false;
         this.panelActiveView = 'table-0';
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.panelHasChart', false);
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.panelChartActive', false);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.panelHasChart', false);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.panelChartActive', false);
     }
 
     /** Ensures the singleton webview panel exists, creating it (with chart adapter) if needed. */
@@ -1125,13 +1125,13 @@ export class ResultsViewer {
         this.singletonMode = mode;
 
         this.singletonView = vscode.window.createWebviewPanel(
-            'msKustoExplorer_singletonView',
+            'kustoTraceTools_singletonView',
             title,
             { viewColumn, preserveFocus: true },
             { enableScripts: true, retainContextWhenHidden: true }
         );
 
-        vscode.commands.executeCommand('msKustoExplorer.singletonViewStateChanged');
+        vscode.commands.executeCommand('kustoTraceTools.singletonViewStateChanged');
         this.registerResultWebview(this.singletonView);
 
         // Create chart view for the singleton view
@@ -1173,9 +1173,9 @@ export class ResultsViewer {
             if (this.singletonView?.active) {
                 const state = this.viewerStates.get(this.singletonView);
                 const hasChart = !!getPrimaryChart(state?.resultData);
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerHasChart', hasChart);
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerChartActive', state?.activeView === 'chart');
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerShowingData', state?.activeView !== 'query');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasChart', hasChart);
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', state?.activeView === 'chart');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', state?.activeView !== 'query');
             }
         });
 
@@ -1183,8 +1183,8 @@ export class ResultsViewer {
             if (message.command === 'viewChanged' && typeof message.viewId === 'string') {
                 const state = this.viewerStates.get(this.singletonView!);
                 if (state) { state.activeView = message.viewId; }
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerChartActive', message.viewId === 'chart');
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerShowingData', message.viewId !== 'query');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', message.viewId === 'chart');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', message.viewId !== 'query');
                 return;
             }
             if (message.command === 'editPanelToggled' && typeof message.visible === 'boolean') {
@@ -1215,10 +1215,10 @@ export class ResultsViewer {
             this.singletonResultData = undefined;
             this.singletonChartOptionsOverride = undefined;
             this.singletonBackingUri = undefined;
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerHasChart', false);
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerChartActive', false);
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerShowingData', false);
-            vscode.commands.executeCommand('msKustoExplorer.singletonViewStateChanged');
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasChart', false);
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', false);
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', false);
+            vscode.commands.executeCommand('kustoTraceTools.singletonViewStateChanged');
         });
     }
 
@@ -1237,9 +1237,9 @@ export class ResultsViewer {
             activeView: hasChart ? 'chart' : 'table-0'
         });
 
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerHasChart', hasChart);
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerChartActive', hasChart);
-        vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerShowingData', !hasChart);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasChart', hasChart);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', hasChart);
+        vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', !hasChart);
 
         this.singletonView!.title = title;
         this.singletonView!.webview.html = html;
@@ -1338,9 +1338,9 @@ export class ResultsViewer {
                     tableNames,
                     activeView: 'table-0'
                 });
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerHasChart', false);
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerChartActive', false);
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerShowingData', true);
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasChart', false);
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', false);
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', true);
             }
         } else {
             // Document view: remove chart from the data and update the document
@@ -1378,7 +1378,7 @@ export class ResultsViewer {
             this.singletonChartOptionsOverride = undefined;
             this.singletonBackingUri = undefined;
             this.singletonMode = undefined;
-            vscode.commands.executeCommand('msKustoExplorer.singletonViewStateChanged');
+            vscode.commands.executeCommand('kustoTraceTools.singletonViewStateChanged');
         }
     }
 
@@ -1479,7 +1479,7 @@ export class ResultsViewer {
         if (result) {
             // Open saved file as a document view, but keep the singleton alive
             // (history entry remains; singleton will be reused on next query or history click)
-            await vscode.commands.executeCommand('vscode.openWith', result.uri, 'msKustoExplorer_resultViewer', viewColumn);
+            await vscode.commands.executeCommand('vscode.openWith', result.uri, 'kustoTraceTools_resultViewer', viewColumn);
         }
     }
 
@@ -1610,26 +1610,26 @@ export class ResultsViewer {
 // =============================================================================
 
 function getResultsDisplayLocation(): 'panel' | 'beside' | 'main' {
-    const value = vscode.workspace.getConfiguration('msKustoExplorer.results').get<string>('display', 'panel');
+    const value = vscode.workspace.getConfiguration('kustoTraceTools.results').get<string>('display', 'panel');
     if (value === 'beside') return 'beside';
     if (value === 'main') return 'main';
     return 'panel';
 }
 
 function getResultsEditorMode(): 'newTab' | 'reuse' {
-    const value = vscode.workspace.getConfiguration('msKustoExplorer.results').get<string>('editorMode', 'newTab');
+    const value = vscode.workspace.getConfiguration('kustoTraceTools.results').get<string>('editorMode', 'newTab');
     return value === 'reuse' ? 'reuse' : 'newTab';
 }
 
 /**
  * Returns the effective chart display location.
  * When results are in beside/main, chart is always in the same singleton (returns the results location).
- * When results are in the bottom panel, uses the msKustoExplorer.results.chartDisplay setting.
+ * When results are in the bottom panel, uses the kustoTraceTools.results.chartDisplay setting.
  */
 function getChartDisplayLocation(): 'beside' | 'main' | 'results' {
     const resultsLocation = getResultsDisplayLocation();
     if (resultsLocation !== 'panel') return resultsLocation;
-    const value = vscode.workspace.getConfiguration('msKustoExplorer.results').get<string>('chartDisplay', 'beside');
+    const value = vscode.workspace.getConfiguration('kustoTraceTools.results').get<string>('chartDisplay', 'beside');
     if (value === 'main') return 'main';
     if (value === 'results') return 'results';
     return 'beside';
@@ -1767,10 +1767,10 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
             if (webviewPanel.active) {
                 const state = this.viewer.viewerStates.get(webviewPanel);
                 const hasChart = !!getPrimaryChart(state?.resultData);
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerHasChart', hasChart);
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerChartActive', state?.activeView === 'chart');
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerShowingData', state?.activeView !== 'query');
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerHasQuery', !!state?.resultData?.query);
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasChart', hasChart);
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', state?.activeView === 'chart');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', state?.activeView !== 'query');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasQuery', !!state?.resultData?.query);
             }
         };
         webviewPanel.onDidChangeViewState(() => updateChartContext());
@@ -1814,8 +1814,8 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
                 if (state) {
                     state.activeView = message.viewId;
                 }
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerChartActive', message.viewId === 'chart');
-                vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerShowingData', message.viewId !== 'query');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', message.viewId === 'chart');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', message.viewId !== 'query');
                 return;
             }
             if (message.command === 'editPanelToggled' && typeof message.visible === 'boolean') {
@@ -1872,10 +1872,10 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
             this.viewer.webviewDocuments.delete(webviewPanel);
             this.selfEditDepth.delete(webviewPanel);
             this.selfEditQueue.delete(webviewPanel);
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerHasChart', false);
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerChartActive', false);
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerShowingData', false);
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerHasQuery', false);
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasChart', false);
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', false);
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', false);
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasQuery', false);
             changeSubscription.dispose();
             themeSubscription.dispose();
         });
@@ -1922,14 +1922,14 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
 
         // Update context keys after state is set (HTML rebuild always resets to firstActiveView)
         if (webviewPanel.active) {
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerHasChart', hasChart);
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerChartActive', firstActiveView === 'chart');
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasChart', hasChart);
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', firstActiveView === 'chart');
             // showingData is unconditionally true here because firstActiveView is only ever
             // 'chart' or 'table-0' — the rebuild discards any prior 'query' tab selection.
             // If updateWebview is ever changed to preserve the user's active tab across
             // re-renders, this should become `existingState?.activeView !== 'query'`.
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerShowingData', true);
-            vscode.commands.executeCommand('setContext', 'msKustoExplorer.resultViewerHasQuery', !!resultData?.query);
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', true);
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasQuery', !!resultData?.query);
         }
 
         const rawChart = getPrimaryChart(resultData);

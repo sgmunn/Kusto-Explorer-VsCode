@@ -22,8 +22,8 @@ const mockToken = { isCancellationRequested: false } as vscode.CancellationToken
 
 describe('EntityDefinitionProvider', () => {
     describe('ENTITY_DEFINITION_SCHEME', () => {
-        it('equals kusto-entity', () => {
-            expect(ENTITY_DEFINITION_SCHEME).toBe('kusto-entity');
+        it('equals kustotracetools-entity', () => {
+            expect(ENTITY_DEFINITION_SCHEME).toBe('kustotracetools-entity');
         });
     });
 
@@ -33,7 +33,7 @@ describe('EntityDefinitionProvider', () => {
             const provider = new EntityDefinitionProvider(server);
 
             const result = await provider.provideTextDocumentContent(
-                mockUri('kusto-entity://help/Samples/StormEvents'),
+                mockUri('kustotracetools-entity://help/Samples/StormEvents'),
                 mockToken,
             );
 
@@ -45,12 +45,12 @@ describe('EntityDefinitionProvider', () => {
             const provider = new EntityDefinitionProvider(server);
 
             await provider.provideTextDocumentContent(
-                mockUri('kusto-entity://cluster/db/entity'),
+                mockUri('kustotracetools-entity://cluster/db/entity'),
                 mockToken,
             );
 
             expect(server.getEntityDefinitionContent).toHaveBeenCalledWith(
-                'kusto-entity://cluster/db/entity',
+                'kustotracetools-entity://cluster/db/entity',
                 mockToken,
             );
         });
@@ -82,7 +82,7 @@ describe('EntityDefinitionProvider', () => {
             let firedUri: vscode.Uri | undefined;
             provider.onDidChange((uri) => { firedUri = uri; });
 
-            const uri = mockUri('kusto-entity://test');
+            const uri = mockUri('kustotracetools-entity://test');
             provider.refresh(uri);
 
             expect(firedUri).toBe(uri);

@@ -11,7 +11,7 @@ function makeResultData(): ResultData {
         cluster: 'help.kusto.windows.net',
         database: 'Samples',
         executionStartedAt: '2026-09-08T12:00:00.000Z',
-        clientRequestId: 'KustoExplorerVsCode;test-cid',
+        clientRequestId: 'KustoTraceTools;test-cid',
         tables: [
             {
                 name: 'PrimaryResult',
@@ -29,9 +29,9 @@ function makeResultData(): ResultData {
 
 describe('formatSavedQueryResults', () => {
     it('returns every result table with execution metadata', () => {
-        const output = formatSavedQueryResults(makeResultData(), 'KustoExplorerVsCode;test-cid');
+        const output = formatSavedQueryResults(makeResultData(), 'KustoTraceTools;test-cid');
 
-        expect(output).toContain('CID: KustoExplorerVsCode;test-cid');
+        expect(output).toContain('CID: KustoTraceTools;test-cid');
         expect(output).toContain('Cluster: help.kusto.windows.net');
         expect(output).toContain('## Table: PrimaryResult (3 rows)');
         expect(output).toContain('## Table: SecondaryResult (1 rows)');
@@ -40,7 +40,7 @@ describe('formatSavedQueryResults', () => {
     });
 
     it('selects one table by exact name', () => {
-        const output = formatSavedQueryResults(makeResultData(), 'KustoExplorerVsCode;test-cid', {
+        const output = formatSavedQueryResults(makeResultData(), 'KustoTraceTools;test-cid', {
             tableName: 'SecondaryResult',
         });
 
@@ -49,7 +49,7 @@ describe('formatSavedQueryResults', () => {
     });
 
     it('reports available tables when an exact table name is missing', () => {
-        const output = formatSavedQueryResults(makeResultData(), 'KustoExplorerVsCode;test-cid', {
+        const output = formatSavedQueryResults(makeResultData(), 'KustoTraceTools;test-cid', {
             tableName: 'Missing',
         });
 
@@ -58,7 +58,7 @@ describe('formatSavedQueryResults', () => {
     });
 
     it('limits rows per table and reports truncation', () => {
-        const output = formatSavedQueryResults(makeResultData(), 'KustoExplorerVsCode;test-cid', {
+        const output = formatSavedQueryResults(makeResultData(), 'KustoTraceTools;test-cid', {
             tableName: 'PrimaryResult',
             maxRows: 2,
         });

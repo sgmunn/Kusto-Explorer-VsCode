@@ -8,28 +8,28 @@ namespace Kusto.Vscode;
 public static class ChartSettings
 {
     public static readonly Setting<string?> LegendPosition =
-        new Setting<string?>("msKustoExplorer.chart.legendPosition", null);
+        new Setting<string?>("kustoTraceTools.chart.legendPosition", null);
 
     public static readonly Setting<string?> XShowTicks =
-        new Setting<string?>("msKustoExplorer.chart.xShowTicks", null);
+        new Setting<string?>("kustoTraceTools.chart.xShowTicks", null);
 
     public static readonly Setting<string?> YShowTicks =
-        new Setting<string?>("msKustoExplorer.chart.yShowTicks", null);
+        new Setting<string?>("kustoTraceTools.chart.yShowTicks", null);
 
     public static readonly Setting<string?> XShowGrid =
-        new Setting<string?>("msKustoExplorer.chart.xShowGrid", null);
+        new Setting<string?>("kustoTraceTools.chart.xShowGrid", null);
 
     public static readonly Setting<string?> YShowGrid =
-        new Setting<string?>("msKustoExplorer.chart.yShowGrid", null);
+        new Setting<string?>("kustoTraceTools.chart.yShowGrid", null);
 
     public static readonly Setting<string?> ShowValues =
-        new Setting<string?>("msKustoExplorer.chart.showValues", null);
+        new Setting<string?>("kustoTraceTools.chart.showValues", null);
 
     public static readonly Setting<string?> TextSize =
-        new Setting<string?>("msKustoExplorer.chart.textSize", null);
+        new Setting<string?>("kustoTraceTools.chart.textSize", null);
 
     public static readonly Setting<string?> AspectRatio =
-        new Setting<string?>("msKustoExplorer.chart.aspectRatio", null);
+        new Setting<string?>("kustoTraceTools.chart.aspectRatio", null);
 
     public static readonly ImmutableList<Setting> All =
         [

@@ -82,7 +82,7 @@ describe('ResultsViewer panel badge', () => {
         const { viewer, state } = createViewer(createPanel(1));
         const replacement = createPanel();
         vi.mocked(vscode.commands.executeCommand).mockImplementation(async (command) => {
-            if (command === 'msKustoExplorer_resultsView.focus') state.resultsPanel = replacement;
+            if (command === 'kustoTraceTools_resultsView.focus') state.resultsPanel = replacement;
         });
 
         if (selection === 'empty') await viewer.displayResultsInBottomPanel(result(0), 'data');
@@ -109,7 +109,7 @@ describe('ResultsViewer panel badge', () => {
         let resumeFocus!: () => void;
         const focus = new Promise<void>(resolve => { resumeFocus = resolve; });
         vi.mocked(vscode.commands.executeCommand).mockImplementation(async (command) => {
-            if (command === 'msKustoExplorer_resultsView.focus') await focus;
+            if (command === 'kustoTraceTools_resultsView.focus') await focus;
         });
 
         const olderDisplay = viewer.displayResultsInBottomPanel(result(4), 'data');

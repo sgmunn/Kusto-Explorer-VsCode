@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 /*
- * This module implements the @kusto chat participant and language model tools for GitHub Copilot.
+ * This module implements the @kustotracetools chat participant and language model tools for GitHub Copilot.
  * It registers tools for querying cluster metadata, running queries, validating KQL, and inspecting schema,
  * enabling Copilot to assist users with Kusto queries using their connected database context.
  */
@@ -17,7 +17,7 @@ import type { ResultsViewer } from './resultsViewer';
 import type { HistoryManager } from './historyManager';
 import { formatSavedQueryResults } from './savedQueryResults';
 
-const COPILOT_PARTICIPANT_ID = 'msKustoExplorer';
+const COPILOT_PARTICIPANT_ID = 'kustoTraceTools';
 const MAX_SCHEMA_CHARS = 30000; // Approximate limit to stay within token limits
 
 // Module-level state set once in activate(). These act as singletons for the extension's
@@ -94,33 +94,33 @@ export function activate(
     history = historyManager;
 
     // Register tools
-    registerTool(context, 'msKustoExplorer_getClusters', 'Getting available clusters...', getClusters);
-    registerTool(context, 'msKustoExplorer_getActiveConnection', 'Getting active connection...', getActiveConnection);
-    registerTool(context, 'msKustoExplorer_getDatabases', 'Getting databases...', getDatabases);
-    registerTool(context, 'msKustoExplorer_getTables', 'Getting tables...', getTables);
-    registerTool(context, 'msKustoExplorer_getTableColumns', 'Getting table columns...', getTableColumns);
-    registerTool(context, 'msKustoExplorer_getExternalTables', 'Getting external tables...', getExternalTables);
-    registerTool(context, 'msKustoExplorer_getExternalTableColumns', 'Getting external table columns...', getExternalTableColumns);
-    registerTool(context, 'msKustoExplorer_getFunctions', 'Getting functions...', getFunctions);
-    registerTool(context, 'msKustoExplorer_getMaterializedViews', 'Getting materialized views...', getMaterializedViews);
-    registerTool(context, 'msKustoExplorer_getMaterializedViewColumns', 'Getting materialized view columns...', getMaterializedViewColumns);
-    registerTool(context, 'msKustoExplorer_getEntityGroups', 'Getting entity groups...', getEntityGroups);
-    registerTool(context, 'msKustoExplorer_getGraphModels', 'Getting graph models...', getGraphModels);
-    registerTool(context, 'msKustoExplorer_getTableDefinition', 'Getting table definition...', getTableDefinition);
-    registerTool(context, 'msKustoExplorer_getExternalTableDefinition', 'Getting external table definition...', getExternalTableDefinition);
-    registerTool(context, 'msKustoExplorer_getMaterializedViewDefinition', 'Getting materialized view definition...', getMaterializedViewDefinition);
-    registerTool(context, 'msKustoExplorer_getFunctionDefinition', 'Getting function definition...', getFunctionDefinition);
-    registerTool(context, 'msKustoExplorer_getEntityGroupDefinition', 'Getting entity group definition...', getEntityGroupDefinition);
-    registerTool(context, 'msKustoExplorer_getGraphModelDefinition', 'Getting graph model definition...', getGraphModelDefinition);
-    registerTool(context, 'msKustoExplorer_getCurrentQueryText', 'Getting current query...', getCurrentQuery);
-    registerTool(context, 'msKustoExplorer_getQueryRanges', 'Getting query ranges...', getQueryRanges);
-    registerTool(context, 'msKustoExplorer_validateQuery', 'Validating query...', validateQuery);
-    registerTool(context, 'msKustoExplorer_getQueryResultType', 'Getting query result type...', getQueryResultType);
-    registerTool(context, 'msKustoExplorer_getFunctionResultType', 'Getting function result type...', getFunctionResultType);
-    registerTool(context, 'msKustoExplorer_runQuery', 'Running query...', runQuery);
-    registerTool(context, 'msKustoExplorer_getQueryResults', 'Reading saved query results...', getQueryResults);
+    registerTool(context, 'kustoTraceTools_getClusters', 'Getting available clusters...', getClusters);
+    registerTool(context, 'kustoTraceTools_getActiveConnection', 'Getting active connection...', getActiveConnection);
+    registerTool(context, 'kustoTraceTools_getDatabases', 'Getting databases...', getDatabases);
+    registerTool(context, 'kustoTraceTools_getTables', 'Getting tables...', getTables);
+    registerTool(context, 'kustoTraceTools_getTableColumns', 'Getting table columns...', getTableColumns);
+    registerTool(context, 'kustoTraceTools_getExternalTables', 'Getting external tables...', getExternalTables);
+    registerTool(context, 'kustoTraceTools_getExternalTableColumns', 'Getting external table columns...', getExternalTableColumns);
+    registerTool(context, 'kustoTraceTools_getFunctions', 'Getting functions...', getFunctions);
+    registerTool(context, 'kustoTraceTools_getMaterializedViews', 'Getting materialized views...', getMaterializedViews);
+    registerTool(context, 'kustoTraceTools_getMaterializedViewColumns', 'Getting materialized view columns...', getMaterializedViewColumns);
+    registerTool(context, 'kustoTraceTools_getEntityGroups', 'Getting entity groups...', getEntityGroups);
+    registerTool(context, 'kustoTraceTools_getGraphModels', 'Getting graph models...', getGraphModels);
+    registerTool(context, 'kustoTraceTools_getTableDefinition', 'Getting table definition...', getTableDefinition);
+    registerTool(context, 'kustoTraceTools_getExternalTableDefinition', 'Getting external table definition...', getExternalTableDefinition);
+    registerTool(context, 'kustoTraceTools_getMaterializedViewDefinition', 'Getting materialized view definition...', getMaterializedViewDefinition);
+    registerTool(context, 'kustoTraceTools_getFunctionDefinition', 'Getting function definition...', getFunctionDefinition);
+    registerTool(context, 'kustoTraceTools_getEntityGroupDefinition', 'Getting entity group definition...', getEntityGroupDefinition);
+    registerTool(context, 'kustoTraceTools_getGraphModelDefinition', 'Getting graph model definition...', getGraphModelDefinition);
+    registerTool(context, 'kustoTraceTools_getCurrentQueryText', 'Getting current query...', getCurrentQuery);
+    registerTool(context, 'kustoTraceTools_getQueryRanges', 'Getting query ranges...', getQueryRanges);
+    registerTool(context, 'kustoTraceTools_validateQuery', 'Validating query...', validateQuery);
+    registerTool(context, 'kustoTraceTools_getQueryResultType', 'Getting query result type...', getQueryResultType);
+    registerTool(context, 'kustoTraceTools_getFunctionResultType', 'Getting function result type...', getFunctionResultType);
+    registerTool(context, 'kustoTraceTools_runQuery', 'Running query...', runQuery);
+    registerTool(context, 'kustoTraceTools_getQueryResults', 'Reading saved query results...', getQueryResults);
 
-    // Register the Chat Participant - user invokes with @kusto
+    // Register the Chat Participant - user invokes with @kustotracetools
     const participant = vscode.chat.createChatParticipant(COPILOT_PARTICIPANT_ID, handleChatRequest);
     participant.iconPath = new vscode.ThemeIcon('database');
     context.subscriptions.push(participant);
@@ -256,7 +256,7 @@ async function getGraphModels(input: { cluster?: string; database?: string }): P
 /** Input type for entity definition handlers that look up a named entity. */
 interface EntityDefinitionInput { cluster?: string; database?: string; name: string }
 
-/** Builds a kusto-entity:// URI and fetches the definition content from the language server. */
+/** Builds a kustotracetools-entity:// URI and fetches the definition content from the language server. */
 async function getEntityDefinition(input: EntityDefinitionInput, entityType: string): Promise<string> {
     const connection = await resolveConnection(input);
     if (!connection) {
@@ -473,11 +473,11 @@ async function getQueryResults(input: { clientRequestId: string; tableName?: str
 }
 
 // =============================================================================
-// Chat Participant - User invokes with @kusto
+// Chat Participant - User invokes with @kustotracetools
 // =============================================================================
 
 /**
- * Handles the Copilot chat request for the @kusto participant.
+ * Handles the Copilot chat request for the @kustotracetools participant.
  */
 async function handleChatRequest(
     request: vscode.ChatRequest,

@@ -25,7 +25,7 @@ export class HistoryPanel {
 
     constructor(context: vscode.ExtensionContext, private readonly manager: HistoryManager, private readonly resultsViewer: ResultsViewer) {
         this.treeProvider = new HistoryTreeProvider(manager);
-        this.treeView = vscode.window.createTreeView('msKustoExplorer_history', {
+        this.treeView = vscode.window.createTreeView('kustoTraceTools_history', {
             treeDataProvider: this.treeProvider,
         });
         context.subscriptions.push(this.treeView);
@@ -192,7 +192,7 @@ class HistoryItem extends vscode.TreeItem {
         ].filter(Boolean).join('\n');
 
         this.command = {
-            command: 'msKustoExplorer.openHistoryItem',
+            command: 'kustoTraceTools.openHistoryItem',
             title: 'Open',
             arguments: [this],
         };

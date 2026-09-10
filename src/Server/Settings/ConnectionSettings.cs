@@ -8,7 +8,7 @@ namespace Kusto.Vscode;
 public class ConnectionSettings
 {
     public static Setting<string> DefaultDomain =
-        new Setting<string>("msKustoExplorer.defaultDomain", ".kusto.windows.net");
+        new Setting<string>("kustoTraceTools.defaultDomain", ".kusto.windows.net");
 
     public static readonly ImmutableList<Setting> All =
         [

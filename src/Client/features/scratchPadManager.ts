@@ -15,7 +15,7 @@ import * as fs from 'fs';
 // =============================================================================
 
 /** URI scheme for scratch pad virtual documents. */
-export const SCRATCH_PAD_SCHEME = 'msKustoExplorer-scratch';
+export const SCRATCH_PAD_SCHEME = 'kustoTraceTools-scratch';
 
 /** Name of the JSON file that stores scratch pad display order. */
 const ORDER_FILE = '_order.json';
@@ -205,7 +205,7 @@ export class ScratchPadManager {
 }
 
 // =============================================================================
-// FileSystemProvider — maps msKustoExplorer-scratch:/ URIs to real files on disk
+// FileSystemProvider — maps kustoTraceTools-scratch:/ URIs to real files on disk
 // =============================================================================
 
 class ScratchPadFileSystemProvider implements vscode.FileSystemProvider {

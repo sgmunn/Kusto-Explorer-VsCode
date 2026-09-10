@@ -4,7 +4,7 @@
 import * as vscode from 'vscode';
 import { parse, stringify } from 'yaml';
 
-const STORAGE_KEY = 'msKustoExplorer.queryParameterProfiles';
+const STORAGE_KEY = 'kustoTraceTools.queryParameterProfiles';
 
 export interface QueryParameterProfile {
     name: string;
@@ -84,7 +84,7 @@ export class QueryParameterProfiles {
         this.directoryUri = workspaceFolder && vscode.Uri.joinPath(workspaceFolder.uri, '.kusto');
         this.fileUri = this.directoryUri && vscode.Uri.joinPath(this.directoryUri, 'parameters.yaml');
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, -1);
-        this.statusBarItem.command = 'msKustoExplorer.selectQueryParameterProfile';
+        this.statusBarItem.command = 'kustoTraceTools.selectQueryParameterProfile';
         context.subscriptions.push(this.statusBarItem, vscode.window.onDidChangeActiveTextEditor(() => void this.refreshStatusBar()));
         if (this.fileUri && workspaceFolder) {
             const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceFolder, '.kusto/parameters.yaml'));

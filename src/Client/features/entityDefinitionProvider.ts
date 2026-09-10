@@ -3,7 +3,7 @@
 
 /*
  * This module provides "Go to Definition" for Kusto database entities (tables, functions, etc.).
- * When the language server resolves a definition to a kusto-entity:// URI, this provider fetches
+ * When the language server resolves a definition to a kustotracetools-entity:// URI, this provider fetches
  * the entity's create command from the server and displays it as a read-only virtual document.
  */
 
@@ -14,13 +14,13 @@ import type { IServer } from './server';
  * URI scheme for virtual entity definition documents.
  * Must match the scheme used in the language server (KustoLspServer.cs).
  */
-export const ENTITY_DEFINITION_SCHEME = 'kusto-entity';
+export const ENTITY_DEFINITION_SCHEME = 'kustotracetools-entity';
 
 /**
  * Provides content for virtual entity definition documents.
  * 
  * When the user performs "Go to Definition" on a database entity (table, function, etc.),
- * the language server returns a URI with the 'kusto-entity' scheme. VS Code then calls
+ * the language server returns a URI with the 'kustotracetools-entity' scheme. VS Code then calls
  * this provider to get the document content, which displays the entity's create command.
  * 
  * This mimics Visual Studio's "metadata as source" feature for decompiled types.

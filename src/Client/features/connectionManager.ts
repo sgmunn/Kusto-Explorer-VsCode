@@ -114,7 +114,7 @@ function getHostNameSimple(connection: string): string {
  * @returns The suggested display name, or undefined if the cluster name should be used as-is
  */
 export function getDisplayName(cluster: string): string | undefined {
-    const defaultDomain = vscode.workspace.getConfiguration('msKustoExplorer').get<string>('defaultDomain', '.kusto.windows.net');
+    const defaultDomain = vscode.workspace.getConfiguration('kustoTraceTools').get<string>('defaultDomain', '.kusto.windows.net');
     if (defaultDomain && cluster.endsWith(defaultDomain)) {
         const shortName = cluster.substring(0, cluster.length - defaultDomain.length);
         if (shortName && shortName !== cluster) {
