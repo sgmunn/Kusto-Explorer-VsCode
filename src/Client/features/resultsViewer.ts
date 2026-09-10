@@ -7,6 +7,7 @@
 */
 
 import * as vscode from 'vscode';
+import { runCancellableQuery } from './queryCancellation';
 import type { IServer } from './server';
 import * as server from './server';
 import type { IClipboard } from './clipboard';
@@ -1549,11 +1550,16 @@ export class ResultsViewer {
         const { query, cluster, database } = state.resultData;
         const chartOptions = getPrimaryChartOptions(state.resultData);
 
+        let cancellationToken: vscode.CancellationToken | undefined;
         try {
             const runResult = await vscode.window.withProgress(
-                { location: vscode.ProgressLocation.Notification, title: 'Rerunning query...' },
-                () => this.server.runQuery(query, cluster, database, true)
+                { location: vscode.ProgressLocation.Notification, title: 'Rerunning query...', cancellable: true },
+                (_progress, token) => {
+                    cancellationToken = token;
+                    return runCancellableQuery(token, () => this.server.runQuery(query, cluster, database, true, undefined, undefined, undefined, token));
+                }
             );
+            if (cancellationToken?.isCancellationRequested) { return; }
 
             if (runResult?.error) {
                 vscode.window.showErrorMessage(runResult.error.message);
@@ -1584,7 +1590,9 @@ export class ResultsViewer {
             await vscode.workspace.applyEdit(edit);
             await document.save();
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to rerun query: ${error}`);
+            if (!cancellationToken?.isCancellationRequested) {
+                vscode.window.showErrorMessage(`Failed to rerun query: ${error}`);
+            }
         }
     }
 }

@@ -16,9 +16,11 @@ import type { HistoryPanel } from './historyPanel';
 import { formatCfHtml, type ClipboardItem, type IClipboard } from './clipboard';
 import { ENTITY_DEFINITION_SCHEME } from './entityDefinitionProvider';
 import type { QueryParameterProfiles } from './queryParameterProfiles';
+import { runCancellableQuery } from './queryCancellation';
 
 const PASTE_KIND = vscode.DocumentDropOrPasteEditKind.Text.append('kusto');
 const QUERY_RUNNING_CONTEXT_KEY = 'msKustoExplorer.queryRunning';
+const ACTIVE_QUERY_RUNNING_CONTEXT_KEY = 'msKustoExplorer.activeDocumentQueryRunning';
 const MIN_QUERY_RUNNING_INDICATOR_MS = 500;
 
 /**
@@ -81,6 +83,12 @@ function getQueryRangeKey(uri: string, range: Range): string {
     return `${uri}:${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
 }
 
+interface ActiveQueryRun {
+    uri: string;
+    key: string;
+    source: vscode.CancellationTokenSource;
+}
+
 interface QueryRunIndicator {
     key: string;
     generation: number;
@@ -114,6 +122,7 @@ export class QueryEditor {
     private readonly parameterProfiles: QueryParameterProfiles;
     private readonly errorRangeDecoration: vscode.TextEditorDecorationType;
     private readonly queryRunningStatusBarItem: vscode.StatusBarItem;
+    private readonly activeQueryRuns = new Set<ActiveQueryRun>();
     private runningQueryCount = 0;
     private isQueryRunning = false;
     private queryRunningStartedAt = 0;
@@ -164,6 +173,18 @@ export class QueryEditor {
             )
         );
 
+        context.subscriptions.push(
+            vscode.window.onDidChangeActiveTextEditor(() => this.updateActiveQueryContext()),
+            { dispose: () => {
+                for (const run of this.activeQueryRuns) {
+                    run.source.cancel();
+                    run.source.dispose();
+                }
+                this.activeQueryRuns.clear();
+            } }
+        );
+        this.updateActiveQueryContext();
+
         // Register paste provider for clipboard context
         context.subscriptions.push(
             vscode.languages.registerDocumentPasteEditProvider(
@@ -199,6 +220,7 @@ export class QueryEditor {
         }
 
         let queryRunIndicator: QueryRunIndicator | undefined;
+        let activeRun: ActiveQueryRun | undefined;
         try {
             const uri = editor.document.uri.toString();
             const selection = queryRange ?? {
@@ -215,7 +237,12 @@ export class QueryEditor {
                 return;
             }
 
+            activeRun = { uri, key: getQueryRangeKey(uri, resolvedRange), source: new vscode.CancellationTokenSource() };
+            this.activeQueryRuns.add(activeRun);
+            this.updateActiveQueryContext();
+            this.codeLensProvider.setQueryRangeCancellable(activeRun.key, true);
             queryRunIndicator = await this.beginQueryRun(uri, resolvedRange);
+            const token = activeRun.source.token;
 
             // Extract the query text from the document
             const queryText = editor.document.getText(new vscode.Range(
@@ -224,7 +251,8 @@ export class QueryEditor {
             ));
 
             // Get the document's connection (cluster/database)
-            const connection = await this.connections.getDocumentConnection(uri);
+            const connection = await runCancellableQuery(token, () => this.connections.getDocumentConnection(uri));
+            if (token.isCancellationRequested) { return; }
 
             // Run the query via server.runQuery (text-based, returns ResultData)
             const executionStartedAt = new Date().toISOString();
@@ -232,11 +260,27 @@ export class QueryEditor {
             const clientRequestId = createClientRequestId();
             const runResult = await vscode.window.withProgress(
                 {
-                    location: vscode.ProgressLocation.Window,
-                    title: 'Running Kusto query...'
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Running Kusto query...',
+                    cancellable: true
                 },
-                async () => this.server.runQuery(queryText, connection?.cluster, connection?.database, true, undefined, clientRequestId, await this.parameterProfiles.getActiveValues(editor.document.uri))
+                async (_progress, progressToken) => {
+                    const subscription = progressToken.onCancellationRequested(() => activeRun!.source.cancel());
+                    try {
+                        if (progressToken.isCancellationRequested) { activeRun!.source.cancel(); }
+                        return await runCancellableQuery(token, async () => {
+                            const parameters = await this.parameterProfiles.getActiveValues(editor.document.uri);
+                            if (token.isCancellationRequested) { return null; }
+                            return this.server.runQuery(queryText, connection?.cluster, connection?.database, true, undefined, clientRequestId, parameters, token);
+                        });
+                    } finally {
+                        subscription.dispose();
+                    }
+                }
             );
+            if (token.isCancellationRequested) { return; }
+            // Execution has finished. Publishing its result is no longer cancellable.
+            this.removeActiveQueryRun(activeRun);
             const executionDurationMs = Date.now() - startedAtMs;
 
             // If the result includes a connection string for an unknown cluster, add it as a server
@@ -282,14 +326,43 @@ export class QueryEditor {
         } 
         catch (error) 
         {
-            vscode.window.showErrorMessage(`Failed to execute query: ${error}`);
+            if (!activeRun?.source.token.isCancellationRequested) {
+                vscode.window.showErrorMessage(`Failed to execute query: ${error}`);
+            }
         } 
         finally
         {
+            if (activeRun) {
+                this.removeActiveQueryRun(activeRun);
+                activeRun.source.dispose();
+            }
             if (queryRunIndicator) {
                 await this.endQueryRun(queryRunIndicator);
             }
         }
+    }
+
+    /** Cancel the most recent run in this document or the specified query range. */
+    cancelQuery(uri?: vscode.Uri | string, startLine?: number, startChar?: number, endLine?: number, endChar?: number): void {
+        const documentUri = uri?.toString() ?? vscode.window.activeTextEditor?.document.uri.toString();
+        if (!documentUri) { return; }
+        const range = rangeFromArgs(startLine, startChar, endLine, endChar);
+        const key = range ? getQueryRangeKey(documentUri, range) : undefined;
+        const run = [...this.activeQueryRuns].reverse().find(candidate =>
+            candidate.uri === documentUri && (!key || candidate.key === key) && !candidate.source.token.isCancellationRequested);
+        run?.source.cancel();
+    }
+
+    private removeActiveQueryRun(run: ActiveQueryRun): void {
+        this.activeQueryRuns.delete(run);
+        this.codeLensProvider.setQueryRangeCancellable(run.key, [...this.activeQueryRuns].some(candidate => candidate.key === run.key));
+        this.updateActiveQueryContext();
+    }
+
+    private updateActiveQueryContext(): void {
+        const uri = vscode.window.activeTextEditor?.document.uri.toString();
+        const isRunning = [...this.activeQueryRuns].some(run => run.uri === uri);
+        void vscode.commands.executeCommand('setContext', ACTIVE_QUERY_RUNNING_CONTEXT_KEY, isRunning);
     }
 
     private async beginQueryRun(uri: string, range: Range): Promise<QueryRunIndicator> {
@@ -630,6 +703,7 @@ class KustoCodeLensProvider implements vscode.CodeLensProvider {
     private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
     readonly onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
     private readonly runningQueryRangeKeys = new Set<string>();
+    private readonly cancellableQueryRangeKeys = new Set<string>();
 
     constructor(private readonly server: IServer, private readonly history: HistoryManager) {
     }
@@ -649,6 +723,15 @@ class KustoCodeLensProvider implements vscode.CodeLensProvider {
             this.runningQueryRangeKeys.delete(key);
         }
 
+        this.refresh();
+    }
+
+    setQueryRangeCancellable(key: string, isCancellable: boolean): void {
+        if (isCancellable) {
+            this.cancellableQueryRangeKeys.add(key);
+        } else {
+            this.cancellableQueryRangeKeys.delete(key);
+        }
         this.refresh();
     }
 
@@ -691,6 +774,14 @@ class KustoCodeLensProvider implements vscode.CodeLensProvider {
                     tooltip: isQueryRangeRunning ? 'This Kusto query is running' : 'Run this query',
                     arguments: [range.start.line, range.start.character, range.end.line, range.end.character]
                 }));
+                if (this.cancellableQueryRangeKeys.has(getQueryRangeKey(document.uri.toString(), range))) {
+                    lenses.push(new vscode.CodeLens(vsRange, {
+                        title: '$(debug-stop) Cancel',
+                        command: 'msKustoExplorer.cancelQuery',
+                        tooltip: 'Cancel the most recent run of this query',
+                        arguments: [document.uri, range.start.line, range.start.character, range.end.line, range.end.character]
+                    }));
+                }
             }
 
             lenses.push(new vscode.CodeLens(vsRange, {

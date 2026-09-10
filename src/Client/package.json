@@ -147,6 +147,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "msKustoExplorer.cancelQuery",
+        "title": "Cancel Query",
+        "icon": "$(debug-stop)",
+        "enablement": "msKustoExplorer.activeDocumentQueryRunning"
+      },
+      {
         "command": "msKustoExplorer.runQuery.running",
         "title": "Running Query",
         "icon": "$(sync~spin)"
@@ -599,6 +605,11 @@
           "command": "msKustoExplorer.runQuery.running",
           "when": "editorLangId == kusto && !msKustoExplorer.isEntityDefinition && msKustoExplorer.queryRunning",
           "group": "navigation@1"
+        },
+        {
+          "command": "msKustoExplorer.cancelQuery",
+          "when": "editorLangId == kusto && !msKustoExplorer.isEntityDefinition && msKustoExplorer.activeDocumentQueryRunning",
+          "group": "navigation@1.5"
         },
         {
           "command": "msKustoExplorer.refreshDocumentSchema",

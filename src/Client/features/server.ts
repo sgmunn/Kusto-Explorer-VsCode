@@ -15,7 +15,7 @@ import {
  */
 export interface IServer {
     // LSP Requests
-    runQuery(query: string, cluster?: string, database?: string, isReadOnly?: boolean, maxRows?: number, clientRequestId?: string, parameters?: Record<string, string>): Promise<RunQueryResult | null>;
+    runQuery(query: string, cluster?: string, database?: string, isReadOnly?: boolean, maxRows?: number, clientRequestId?: string, parameters?: Record<string, string>, token?: CancellationToken): Promise<RunQueryResult | null>;
     getQueryResultType(query: string, cluster: string, database?: string): Promise<GetQueryResultTypeResult | null>;
     getFunctionResultType(cluster: string, database: string, functionName: string): Promise<GetFunctionResultTypeResult | null>;
     getQueryRanges(uri: string): Promise<QueryRangesResult | null>;
@@ -90,12 +90,14 @@ export class Server implements IServer {
         isReadOnly?: boolean,
         maxRows?: number,
         clientRequestId?: string,
-        parameters?: Record<string, string>
+        parameters?: Record<string, string>,
+        token?: CancellationToken
     ): Promise<RunQueryResult | null> {
-        return this.client.sendRequest<RunQueryResult | null>(
-            'kusto/runQuery',
-            { query, cluster, database, isReadOnly, maxRows, clientRequestId, parameters }
-        );
+        const params = { query, cluster, database, isReadOnly, maxRows, clientRequestId, parameters };
+        // An explicit undefined token is treated as another JSON-RPC parameter.
+        return token
+            ? this.client.sendRequest<RunQueryResult | null>('kusto/runQuery', params, token)
+            : this.client.sendRequest<RunQueryResult | null>('kusto/runQuery', params);
     }
 
     /**

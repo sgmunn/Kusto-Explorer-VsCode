@@ -230,6 +230,7 @@ export async function activate(context: ExtensionContext)
         vscode.commands.registerCommand('msKustoExplorer.noop', () => {}),
         vscode.commands.registerCommand('msKustoExplorer.runQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.runQuery(startLine, startChar, endLine, endChar)),
         vscode.commands.registerCommand('msKustoExplorer.runQuery.running', () => {}),
+        vscode.commands.registerCommand('msKustoExplorer.cancelQuery', (uri?: vscode.Uri | string, startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.cancelQuery(uri, startLine, startChar, endLine, endChar)),
         vscode.commands.registerCommand('msKustoExplorer.copyClientRequestId', (clientRequestId?: string) => queryEditor.copyClientRequestId(clientRequestId)),
         vscode.commands.registerCommand('msKustoExplorer.copyQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.copyQuery(startLine, startChar, endLine, endChar)),
         vscode.commands.registerCommand('msKustoExplorer.copyQueryTransparent', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.copyQuery(startLine, startChar, endLine, endChar, true)),
