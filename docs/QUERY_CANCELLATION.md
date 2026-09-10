@@ -30,12 +30,19 @@ individual editor runs and connect the Cancel command and progress notification.
 Guard result processing after cancellation and dispose subscriptions/sources.
 Review backend propagation and avoid swallowing cancellation as a query error.
 
+Each run has its own token. A CodeLens Cancel targets the newest run of that
+query range; the toolbar targets the newest run in the active document. Each
+notification cancels its associated run. Cancel controls disappear once query
+execution finishes, before the existing result publication workflow starts.
+Cancelled runs finish promptly in the UI while the server winds down, and late
+responses are ignored.
+
 ## Prioritized work plan
 
-1. Implement query cancellation and regression tests; commit a cohesive change.
-2. Independently review cancellation, concurrent runs, and rerun preservation.
-3. Run automated checks and use Computer Use to verify visible controls.
-4. Record validation and any remaining limits here.
+1. Completed: implement query cancellation and commit regression tests.
+2. Completed: independently review cancellation, concurrency, and rerun preservation.
+3. Completed: run automated checks and verify visible controls with Computer Use.
+4. Completed: record validation and remaining limits below.
 
 ## Validation
 
@@ -43,4 +50,27 @@ Review backend propagation and avoid swallowing cancellation as a query error.
   including three new checks for pre-cancelled queries, commands, and typed
   requests. Cancelled requests preserve cancellation instead of producing query
   diagnostics or starting authentication.
-- Client implementation and independent integration/UI verification in progress.
+- An additional SDK boundary test passed: an in-flight query receives the
+  caller's token, exits on cancellation, and is not retried. All four server
+  cancellation regression tests passed together.
+- Client type checking and all 572 unit tests passed. New tests cover prompt
+  cancellation, concurrent isolation, late failures, subscription cleanup, and
+  request argument compatibility for callers without tokens.
+- All three cancellation integration cases passed in VS Code 1.108.2. They
+  verify CodeLens targeting, cancellation completing before the mock server
+  responds, concurrent-run isolation, ignored late results/errors, cleared
+  controls, a subsequent successful run, and preserved rerun file contents.
+- The combined cancellation/editor integration run had nine passing cases and
+  one timeout in the existing `runQuery with explicit range does not need
+  getQueryRange` test. That test passes alone. Running the original code at
+  `326addb` from a separately compiled temporary copy reproduced the same
+  timeout (six passing, one failing), confirming it predates this change.
+- Computer Use verified inline Cancel, notification Cancel, toolbar Cancel
+  Query, and Results Rerun cancellation in an isolated extension development
+  host. All four cancelled their tokens, cleared running UI, left history
+  unchanged, and ignored responses deliberately delivered 2.5 seconds later.
+  The saved rerun result remained `Value=42` instead of the late `Value=999`,
+  both visibly and in its backing file.
+- Queries in automated/UI tests use controlled server responses; stopping
+  computation on a live ADX cluster has not been verified. All acceptance
+  criteria are verified at the client/UI and SDK-token boundaries.
