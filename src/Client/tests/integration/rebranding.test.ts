@@ -68,7 +68,11 @@ suite('KustoTraceTools standalone extension', () => {
                 query: 'print Value = 42',
                 tables: [{ name: 'PrimaryResult', columns: [{ name: 'Value', type: 'long' }], rows: [[42]] }],
             })));
-            await vscode.commands.executeCommand('vscode.openWith', uri, 'kustoTraceTools_resultViewer');
+            if (suffix === 'ktt') {
+                await vscode.commands.executeCommand('vscode.open', uri);
+            } else {
+                await vscode.commands.executeCommand('vscode.openWith', uri, 'kustoTraceTools_resultViewer');
+            }
             const deadline = Date.now() + 5000;
             while (Date.now() < deadline) {
                 const opened = vscode.window.tabGroups.all.flatMap(group => group.tabs).some(tab => {
