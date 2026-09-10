@@ -24,6 +24,10 @@ import { escapeHtml } from './html';
 /** The view type used for the custom results viewer. */
 const resultViewerViewType = 'msKustoExplorer_resultViewer';
 
+// VS Code can retain the visible activity badge when assigned undefined.
+// Publish an explicit zero whenever the Results panel is empty.
+const emptyResultsBadge: vscode.ViewBadge = { tooltip: '0 rows', value: 0 };
+
 /**
  * Controls which content sections are shown in a result view.
  * - 'chart': Only the chart, no tabs.
@@ -600,6 +604,7 @@ export class ResultsViewer {
                         vscode.commands.executeCommand('setContext', 'msKustoExplorer.panelChartActive', message.viewId === 'chart');
                     }
                 });
+                webviewView.badge = emptyResultsBadge;
                 webviewView.webview.html = '<html>no results</html>';
             }
         }, {
@@ -1072,7 +1077,7 @@ export class ResultsViewer {
 
         const badge = rowCount
             ? { tooltip: `${rowCount} rows`, value: rowCount }
-            : hasError ? { tooltip: 'Error', value: 1 } : undefined;
+            : hasError ? { tooltip: 'Error', value: 1 } : emptyResultsBadge;
 
         try {
             this.resultsPanel.badge = badge;
@@ -1101,7 +1106,7 @@ export class ResultsViewer {
 
     private clearResultsPanel(): void {
         if (this.resultsPanel) {
-            this.resultsPanel.badge = undefined;
+            this.resultsPanel.badge = emptyResultsBadge;
             this.resultsPanel.webview.html = '<html>no results</html>';
         }
         this.lastPanelResultData = undefined;

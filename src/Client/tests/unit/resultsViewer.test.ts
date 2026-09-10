@@ -71,11 +71,11 @@ describe('ResultsViewer panel badge', () => {
         await viewer.displayResultsInBottomPanel(result(2, 3), 'data');
         expect(panel.badge).toEqual({ tooltip: '5 rows', value: 5 });
         await viewer.displayResultsInBottomPanel(result(0), 'data');
-        expect(panel.badge).toBeUndefined();
+        expect(panel.badge).toEqual({ tooltip: '0 rows', value: 0 });
         await viewer.displayErrorInBottomView({ message: 'Query failed' });
         expect(panel.badge).toEqual({ tooltip: 'Error', value: 1 });
         await viewer.displayResultsInBottomPanel(result(), 'data');
-        expect(panel.badge).toBeUndefined();
+        expect(panel.badge).toEqual({ tooltip: '0 rows', value: 0 });
     });
 
     it.each(['empty', 'error'] as const)('sets the %s badge on a replacement panel during retry', async (selection) => {
@@ -88,7 +88,7 @@ describe('ResultsViewer panel badge', () => {
         if (selection === 'empty') await viewer.displayResultsInBottomPanel(result(0), 'data');
         else await viewer.displayErrorInBottomView({ message: 'Query failed' });
 
-        expect(replacement.badge).toEqual(selection === 'empty' ? undefined : { tooltip: 'Error', value: 1 });
+        expect(replacement.badge).toEqual(selection === 'empty' ? { tooltip: '0 rows', value: 0 } : { tooltip: 'Error', value: 1 });
         expect(replacement.webview.html).not.toContain('previous results');
     });
 
@@ -100,7 +100,7 @@ describe('ResultsViewer panel badge', () => {
         if (emptyResult.tables.length) await expect(display).resolves.toBeUndefined();
         else await expect(display).rejects.toThrow('Webview unavailable');
 
-        expect(panel.badge).toBeUndefined();
+        expect(panel.badge).toEqual({ tooltip: '0 rows', value: 0 });
     });
 
     it.each([result(0), result()])('keeps a newer empty selection when an older display retry resumes', async (emptyResult) => {
@@ -118,7 +118,7 @@ describe('ResultsViewer panel badge', () => {
         resumeFocus();
         await olderDisplay;
 
-        expect(panel.badge).toBeUndefined();
+        expect(panel.badge).toEqual({ tooltip: '0 rows', value: 0 });
         expect(panel.webview.html).toBe(selectedHtml);
     });
 
@@ -134,7 +134,7 @@ describe('ResultsViewer panel badge', () => {
         ready();
         await olderDisplay;
 
-        expect(panel.badge).toBeUndefined();
+        expect(panel.badge).toEqual({ tooltip: '0 rows', value: 0 });
         expect(panel.webview.html).toContain('no results');
     });
 });
