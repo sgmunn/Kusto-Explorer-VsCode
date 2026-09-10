@@ -50,4 +50,33 @@ inspection remain the essential workflows.
 
 ## Verification
 
-Pending implementation, package build, and smoke testing.
+- Client: 585 unit tests passed; TypeScript checking and lint passed.
+- Server: 204 tests passed using the project's executable MSTest runner
+  (`dotnet run --project src/ServerTests/ServerTests.csproj --no-restore`).
+  Client compilation and Release server publication succeeded.
+- Package: `src/Client/kustotracetools-1.0.1.vsix`, 25,444,353 bytes,
+  112 archive entries. Verified archive integrity, `local.kustotracetools`
+  identity, `.ktt` / `.kqr` associations, client/server binaries, runtime
+  metadata, assets, and license; development files are excluded.
+- SHA-256: `3d5da24a701a487637297301f0778a447d4032c1652402d972dc4eb1062e3c3e`.
+- Installed the actual VSIX into an isolated temporary VS Code profile.
+  All five installed-artifact integration tests passed, including activation,
+  command registration, isolated `.ktt` history storage, KQL associations,
+  default `.ktt` results opening, and legacy `.kqr` results opening. The .NET
+  server started successfully.
+- Computer-use checks passed: KustoTraceTools branding and sidebar views;
+  `.kql` language support with Run/Format actions; `.ktt` and legacy `.kqr`
+  displaying the sample result `Value = 42`; native Save dialog default
+  `results.ktt` with format `KustoTraceTools Results`. Cancelled the dialog.
+  These checks used synthetic local results, without querying ADX.
+- The VS Code test host reports the existing `secondarySideBar` container
+  declaration as unavailable and falls back to Explorer for those views.
+- Live ADX query execution is outside this branding/package smoke test.
+
+## Delivery
+
+Install `src/Client/kustotracetools-1.0.1.vsix` using VS Code's Extensions
+view: **… → Install from VSIX…**, then reload if prompted. The user's existing
+VS Code profile and original extension installation were not changed by the
+isolated verification. New saved results use `.ktt`; queries remain `.kql`.
+All release acceptance criteria above are complete.
