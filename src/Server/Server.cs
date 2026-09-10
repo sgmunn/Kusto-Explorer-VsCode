@@ -2058,6 +2058,7 @@ public class Server : LspServer, ILogger, ISettingSource, IStorage, IAuthenticat
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var queryOptions = BuildQueryOptions(@params.IsReadOnly, @params.MaxRows);
             var queryParameters = @params.Parameters?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty;
 
@@ -2070,6 +2071,8 @@ public class Server : LspServer, ILogger, ISettingSource, IStorage, IAuthenticat
                 clientRequestId: @params.ClientRequestId,
                 cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (runResult.Error != null)
             {
@@ -2098,7 +2101,7 @@ public class Server : LspServer, ILogger, ISettingSource, IStorage, IAuthenticat
                 };
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _ = this.SendWindowLogMessageAsync(ex.Message);
             return new RunQueryResult

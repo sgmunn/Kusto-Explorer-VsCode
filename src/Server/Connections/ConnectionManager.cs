@@ -340,7 +340,7 @@ public class ConnectionManager : IConnectionManager
                 return await ExecuteCoreAsync(query, options, parameters, clientRequestId, cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (KustoClientAuthenticationException) when (CanRetryWithFallback())
+            catch (KustoClientAuthenticationException) when (!cancellationToken.IsCancellationRequested && CanRetryWithFallback())
             {
                 // Native authentication failed (e.g. Kusto.Data could not run
                 // its WAM/MSAL prompt because the server process is hosted in
@@ -352,7 +352,7 @@ public class ConnectionManager : IConnectionManager
                     return await ExecuteCoreAsync(query, options, parameters, clientRequestId, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch (Exception retryEx)
+                catch (Exception retryEx) when (!cancellationToken.IsCancellationRequested)
                 {
                     return new ExecuteResult
                     {
@@ -360,7 +360,7 @@ public class ConnectionManager : IConnectionManager
                     };
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 return new ExecuteResult
                 {
@@ -379,6 +379,8 @@ public class ConnectionManager : IConnectionManager
             string? clientRequestId,
             CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Publish the caller's CancellationToken into the ambient async
             // context so the WithAadTokenProviderAuthentication callback (if
             // Kusto.Data triggers fallback auth during this call) can observe
@@ -399,7 +401,9 @@ public class ConnectionManager : IConnectionManager
                     : await this.QueryProvider.ExecuteQueryAsync(this.Database, query, properties, cancellationToken).ConfigureAwait(false);
                 using (resultReader)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var dataSet = KustoDataReaderParser.ParseV1(resultReader, null);
+                    cancellationToken.ThrowIfCancellationRequested();
                     var primaryTables = dataSet != null
                         ? dataSet.Tables.Where(t => t.TableKind == WellKnownDataSet.PrimaryResult).ToImmutableList()
                         : ImmutableList<Kusto.Data.Data.KustoResponseDataTable>.Empty;
@@ -452,7 +456,7 @@ public class ConnectionManager : IConnectionManager
                 }
 
             }
-            catch (Exception e)
+            catch (Exception e) when (!cancellationToken.IsCancellationRequested)
             {
                 return new ExecuteResult<T>
                 {
