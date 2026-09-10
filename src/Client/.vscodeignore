@@ -19,6 +19,7 @@ tests/**
 .vscode-test.mjs
 tsconfig.integration.json
 **/*.kqr
+**/*.ktt
 .gitignore
 .git/**
 **/*.bat
@@ -26,6 +27,10 @@ settings.txt
 eslint.config.js
 Client.esproj
 obj/**
+**/*.props
+**/*.targets
+**/*.cache
+**/*.esproj
 
 # Documentation (keep README.md and instructions.md)
 *.md
