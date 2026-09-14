@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import { describe, expect, it } from 'vitest';
-import { generateParameterDeclaration, getQueryParameterFilePath, mergeImportedProfiles, parseParameterFile, parseParameterProfilesJson, parseParameterValues, serializeParameterFile } from '../../features/queryParameterProfiles';
+import { activateParameterProfile, findParameterProfileLocations, generateParameterDeclaration, getQueryParameterFilePath, isQueryParameterFilePath, mergeImportedProfiles, parseParameterFile, parseParameterProfilesJson, parseParameterValues, serializeParameterFile } from '../../features/queryParameterProfiles';
 
 describe('query parameter profiles', () => {
     it('parses semicolon-separated parameter values', () => {
@@ -37,6 +37,58 @@ profiles:
         expect(getQueryParameterFilePath('/queries/INVESTIGATE.KQL')).toBe('/queries/INVESTIGATE.parameters.yaml');
         expect(getQueryParameterFilePath('/queries/investigate.csl')).toBeUndefined();
     });
+
+        it('recognizes global and query-specific parameter YAML files', () => {
+                expect(isQueryParameterFilePath('/workspace/.kusto/parameters.yaml')).toBe(true);
+                expect(isQueryParameterFilePath('/workspace/queries/investigate.parameters.yaml')).toBe(true);
+                expect(isQueryParameterFilePath('/workspace/parameters.yaml')).toBe(false);
+                expect(isQueryParameterFilePath('/workspace/queries/investigate.yaml')).toBe(false);
+        });
+
+        it('finds profile key locations and identifies the active group', () => {
+                const contents = `active: Group2
+profiles:
+    Group1:
+        Environment: Daily
+    Group2:
+        Environment: Prod
+`;
+                expect(findParameterProfileLocations(contents)).toEqual([
+                        { name: 'Group1', line: 2, character: 4, length: 6, isActive: false },
+                        { name: 'Group2', line: 4, character: 4, length: 6, isActive: true },
+                ]);
+        });
+
+        it('activates a profile with structured YAML editing and preserves comments', () => {
+                const contents = `# selected incident
+active: Group1
+profiles:
+    Group1:
+        Environment: Daily
+    Group2: # production
+        Environment: Prod
+`;
+                const updated = activateParameterProfile(contents, 'Group2');
+                expect(updated).toContain('# selected incident');
+                expect(updated).toContain('active: "Group2"');
+                expect(updated).toContain('Group2: # production');
+                expect(parseParameterFile(updated!)).toMatchObject({ activeProfileName: 'Group2' });
+                expect(activateParameterProfile(contents, 'Missing')).toBeUndefined();
+        });
+
+            it('quotes profile names that contain YAML syntax', () => {
+                const contents = [
+                    'active: Group1',
+                    'profiles:',
+                    '    Group1:',
+                    '        Environment: Daily',
+                    '    "Group: #2":',
+                    '        Environment: Prod',
+                    '',
+                ].join('\n');
+                const updated = activateParameterProfile(contents, 'Group: #2');
+                expect(parseParameterFile(updated!)).toMatchObject({ activeProfileName: 'Group: #2' });
+            });
 
     it('generates declarations using conservative scalar type inference', () => {
         expect(generateParameterDeclaration({

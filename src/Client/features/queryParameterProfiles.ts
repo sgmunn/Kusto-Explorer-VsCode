@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import * as vscode from 'vscode';
-import { parse, stringify } from 'yaml';
+import { isMap, isScalar, LineCounter, parse, parseDocument, stringify } from 'yaml';
 
 const STORAGE_KEY = 'kustoTraceTools.queryParameterProfiles';
 const INTEGER_PATTERN = /^[+-]?\d+$/;
@@ -32,9 +32,88 @@ interface ProfileTarget {
     scope: 'query' | 'workspace';
 }
 
+export interface ParameterProfileLocation {
+    name: string;
+    line: number;
+    character: number;
+    length: number;
+    isActive: boolean;
+}
+
 /** Returns the adjacent parameter sidecar path for a KQL file. */
 export function getQueryParameterFilePath(queryPath: string): string | undefined {
     return /\.kql$/i.test(queryPath) ? queryPath.slice(0, -4) + '.parameters.yaml' : undefined;
+}
+
+/** Returns whether a path is the workspace parameter file or a query sidecar. */
+export function isQueryParameterFilePath(filePath: string): boolean {
+    return /(?:^|\/)\.kusto\/parameters\.yaml$/i.test(filePath) || /\.parameters\.yaml$/i.test(filePath);
+}
+
+/** Finds direct profile keys and their editor positions using the YAML syntax tree. */
+export function findParameterProfileLocations(contents: string): ParameterProfileLocation[] {
+    const lineCounter = new LineCounter();
+    const document = parseDocument(contents, { lineCounter });
+    if (document.errors.length) return [];
+    const profiles = document.get('profiles', true);
+    if (!isMap(profiles)) return [];
+    const active = document.get('active');
+
+    return profiles.items.flatMap(pair => {
+        const key = pair.key;
+        if (!isScalar(key) || typeof key.value !== 'string' || !key.range) return [];
+        const position = lineCounter.linePos(key.range[0]);
+        const lineStart = contents.lastIndexOf('\n', key.range[0] - 1) + 1;
+        return [{
+            name: key.value,
+            line: position.line - 1,
+            character: key.range[0] - lineStart,
+            length: key.range[1] - key.range[0],
+            isActive: key.value === active,
+        }];
+    });
+}
+
+/** Updates the top-level active profile while retaining YAML comments and structure. */
+export function activateParameterProfile(contents: string, profileName: string): string | undefined {
+    const document = parseDocument(contents);
+    if (document.errors.length) return undefined;
+    const profiles = document.get('profiles', true);
+    if (!isMap(profiles) || !profiles.has(profileName)) return undefined;
+    const active = document.get('active', true);
+    if (isScalar(active) && active.range) {
+        return contents.slice(0, active.range[0]) + JSON.stringify(profileName) + contents.slice(active.range[1]);
+    }
+    document.set('active', profileName);
+    return document.toString();
+}
+
+function getMinimalTextReplacement(original: string, updated: string): { start: number; end: number; text: string } {
+    let start = 0;
+    while (start < original.length && start < updated.length && original[start] === updated[start]) start++;
+    let originalEnd = original.length;
+    let updatedEnd = updated.length;
+    while (originalEnd > start && updatedEnd > start && original[originalEnd - 1] === updated[updatedEnd - 1]) {
+        originalEnd--;
+        updatedEnd--;
+    }
+    return { start, end: originalEnd, text: updated.slice(start, updatedEnd) };
+}
+
+class QueryParameterProfileCodeLensProvider implements vscode.CodeLensProvider {
+    provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
+        if (!isQueryParameterFilePath(document.uri.path)) return [];
+        return findParameterProfileLocations(document.getText()).map(profile => new vscode.CodeLens(
+            new vscode.Range(profile.line, profile.character, profile.line, profile.character + profile.length),
+            profile.isActive
+                ? { title: '$(check) Active', command: 'kustoTraceTools.noop' }
+                : {
+                    title: 'Make Active',
+                    command: 'kustoTraceTools.makeQueryParameterProfileActive',
+                    arguments: [document.uri, profile.name],
+                }
+        ));
+    }
 }
 
 /** Parses `name=value; other=value` input used by the lightweight editor UI. */
@@ -144,7 +223,14 @@ export class QueryParameterProfiles {
         this.fileUri = this.directoryUri && vscode.Uri.joinPath(this.directoryUri, 'parameters.yaml');
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, -1);
         this.statusBarItem.command = 'kustoTraceTools.selectQueryParameterProfile';
-        context.subscriptions.push(this.statusBarItem, vscode.window.onDidChangeActiveTextEditor(() => void this.refreshStatusBar()));
+        context.subscriptions.push(
+            this.statusBarItem,
+            vscode.window.onDidChangeActiveTextEditor(() => void this.refreshStatusBar()),
+            vscode.languages.registerCodeLensProvider([
+                { scheme: 'file', pattern: '**/.kusto/parameters.yaml' },
+                { scheme: 'file', pattern: '**/*.parameters.yaml' },
+            ], new QueryParameterProfileCodeLensProvider())
+        );
         if (this.fileUri && workspaceFolder) {
             const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceFolder, '.kusto/parameters.yaml'));
             watcher.onDidChange(() => void this.loadWorkspaceFile());
@@ -198,6 +284,30 @@ export class QueryParameterProfiles {
         const stored = mergeImportedProfiles(target.stored, parsedProfiles);
         await this.save({ ...target, stored });
         vscode.window.showInformationMessage(`Imported ${parsedProfiles.length} parameter ${parsedProfiles.length === 1 ? 'group' : 'groups'} from the clipboard.`);
+    }
+
+    async makeProfileActive(fileUri: vscode.Uri, profileName: string): Promise<void> {
+        if (!isQueryParameterFilePath(fileUri.path)) return;
+        const document = await vscode.workspace.openTextDocument(fileUri);
+        const original = document.getText();
+        const updated = activateParameterProfile(original, profileName);
+        if (updated === undefined) {
+            vscode.window.showErrorMessage(`Query parameter profile '${profileName}' was not found.`);
+            return;
+        }
+
+        const replacement = getMinimalTextReplacement(original, updated);
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(fileUri, new vscode.Range(document.positionAt(replacement.start), document.positionAt(replacement.end)), replacement.text);
+        if (!await vscode.workspace.applyEdit(edit)) {
+            vscode.window.showErrorMessage(`Could not activate query parameter profile '${profileName}'.`);
+            return;
+        }
+        if (!await document.save()) {
+            vscode.window.showErrorMessage(`Query parameter profile '${profileName}' is active in the editor but could not be saved.`);
+            return;
+        }
+        await this.refreshStatusBar();
     }
 
     private async createProfileForTarget(existingTarget?: ProfileTarget): Promise<void> {

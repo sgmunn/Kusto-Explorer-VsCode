@@ -129,6 +129,40 @@ profiles:
         }
     });
 
+    test('parameter YAML CodeLens activates profiles in global and sidecar files', async () => {
+        const directory = vscode.Uri.file(path.join(os.tmpdir(), `kustotracetools-parameter-lenses-${Date.now()}`));
+        const parameterUris = [
+            vscode.Uri.joinPath(directory, '.kusto', 'parameters.yaml'),
+            vscode.Uri.joinPath(directory, 'investigate.parameters.yaml'),
+        ];
+        await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(directory, '.kusto'));
+
+        try {
+            for (const parameterUri of parameterUris) {
+                await vscode.workspace.fs.writeFile(parameterUri, Buffer.from(`active: Group1
+profiles:
+  Group1:
+    Environment: Daily
+  Group2:
+    Environment: Prod
+`));
+                const document = await vscode.workspace.openTextDocument(parameterUri);
+                await vscode.window.showTextDocument(document);
+                const lenses = await vscode.commands.executeCommand<vscode.CodeLens[]>('vscode.executeCodeLensProvider', parameterUri);
+                const makeActive = lenses.find(lens => lens.command?.title === 'Make Active');
+                assert.ok(makeActive?.command);
+
+                await vscode.commands.executeCommand(makeActive.command.command, ...makeActive.command.arguments ?? []);
+
+                assert.match(document.getText(), /active: ["']?Group2["']?/);
+                const updatedLenses = await vscode.commands.executeCommand<vscode.CodeLens[]>('vscode.executeCodeLensProvider', parameterUri);
+                assert.strictEqual(updatedLenses.filter(lens => lens.command?.title === '$(check) Active').length, 1);
+            }
+        } finally {
+            await vscode.workspace.fs.delete(directory, { recursive: true });
+        }
+    });
+
     test('runQuery with mocked server displays results in bottom panel and history', async () => {
         const doc = await vscode.workspace.openTextDocument({
             language: 'kusto',

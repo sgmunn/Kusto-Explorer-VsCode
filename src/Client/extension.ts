@@ -124,6 +124,7 @@ export async function activate(context: ExtensionContext)
         vscode.commands.registerCommand('kustoTraceTools.editQueryParameterProfile', () => queryParameterProfiles.editActiveProfile()),
         vscode.commands.registerCommand('kustoTraceTools.openQueryParameterFile', () => queryParameterProfiles.openParameterFile()),
         vscode.commands.registerCommand('kustoTraceTools.openQuerySpecificParameterFile', () => queryParameterProfiles.openQueryParameterFile()),
+        vscode.commands.registerCommand('kustoTraceTools.makeQueryParameterProfileActive', (fileUri: vscode.Uri, profileName: string) => queryParameterProfiles.makeProfileActive(fileUri, profileName)),
         vscode.commands.registerCommand('kustoTraceTools.showRowDetails', () =>
             vscode.commands.executeCommand('kustoTraceTools_rowDetails.focus')),
         vscode.commands.registerCommand('kustoTraceTools.copyChart', () => resultsViewer.copyChart()),
