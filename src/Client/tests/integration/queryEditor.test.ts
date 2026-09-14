@@ -102,6 +102,58 @@ suite('Query Editor Integration Tests', () => {
         assert.strictEqual(editor.selection.end.character, line1Length);
     });
 
+    test('outline contains one group per detected query', async () => {
+        const directory = vscode.Uri.file(path.join(os.tmpdir(), `kustotracetools-outline-${Date.now()}`));
+        const queryUri = vscode.Uri.joinPath(directory, 'investigate.kql');
+        const queryText = '// Count storms\nStormEvents\n| count\n\n// Constant value\nprint value = 1';
+        await vscode.workspace.fs.createDirectory(directory);
+        await vscode.workspace.fs.writeFile(queryUri, Buffer.from(queryText));
+
+        const originalGetQueryRanges = server.getQueryRanges.bind(server);
+        server.getQueryRanges = async uri => ({
+            uri,
+            ranges: [
+                { start: { line: 0, character: 0 }, end: { line: 2, character: 7 } },
+                { start: { line: 4, character: 0 }, end: { line: 5, character: 15 } },
+            ],
+        });
+
+        try {
+            const document = await vscode.workspace.openTextDocument(queryUri);
+            await vscode.window.showTextDocument(document);
+            const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+                'vscode.executeDocumentSymbolProvider',
+                queryUri
+            );
+
+            assert.deepStrictEqual(symbols.map(symbol => ({
+                name: symbol.name,
+                detail: symbol.detail,
+                kind: symbol.kind,
+                start: [symbol.range.start.line, symbol.range.start.character],
+                end: [symbol.range.end.line, symbol.range.end.character],
+            })), [
+                {
+                    name: 'Count storms',
+                    detail: '// Count storms StormEvents | count',
+                    kind: vscode.SymbolKind.Namespace,
+                    start: [0, 0],
+                    end: [2, 7],
+                },
+                {
+                    name: 'Constant value',
+                    detail: '// Constant value print value = 1',
+                    kind: vscode.SymbolKind.Namespace,
+                    start: [4, 0],
+                    end: [5, 15],
+                },
+            ]);
+        } finally {
+            server.getQueryRanges = originalGetQueryRanges;
+            await vscode.workspace.fs.delete(directory, { recursive: true });
+        }
+    });
+
     test('insertQueryParameterDeclaration inserts active query-scoped parameters at the query start', async () => {
         const directory = vscode.Uri.file(path.join(os.tmpdir(), `kustotracetools-parameters-${Date.now()}`));
         const queryUri = vscode.Uri.joinPath(directory, 'investigate.kql');

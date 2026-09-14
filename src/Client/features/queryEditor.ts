@@ -15,6 +15,7 @@ import type { HistoryEntry } from './historyManager';
 import type { HistoryPanel } from './historyPanel';
 import { formatCfHtml, type ClipboardItem, type IClipboard } from './clipboard';
 import { ENTITY_DEFINITION_SCHEME } from './entityDefinitionProvider';
+import { createQueryOutlineEntries } from './queryOutline';
 import { generateParameterDeclaration, type QueryParameterProfiles } from './queryParameterProfiles';
 import { runCancellableQuery } from './queryCancellation';
 
@@ -170,6 +171,10 @@ export class QueryEditor {
             vscode.languages.registerCodeLensProvider(
                 { language: 'kusto' },
                 this.codeLensProvider
+            ),
+            vscode.languages.registerDocumentSymbolProvider(
+                { language: 'kusto', scheme: 'file', pattern: '**/*.[kK][qQ][lL]' },
+                new KustoDocumentSymbolProvider(this.server)
             )
         );
 
@@ -720,6 +725,43 @@ export class QueryEditor {
                 }
             }
         );
+    }
+}
+
+// =============================================================================
+// Document Symbol Provider
+// =============================================================================
+
+class KustoDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
+    constructor(private readonly server: IServer) {
+    }
+
+    async provideDocumentSymbols(
+        document: vscode.TextDocument,
+        token: vscode.CancellationToken
+    ): Promise<vscode.DocumentSymbol[]> {
+        try {
+            const result = await this.server.getQueryRanges(document.uri.toString());
+            if (!result || token.isCancellationRequested) return [];
+
+            return createQueryOutlineEntries(document.getText(), result.ranges).map(entry => {
+                const range = new vscode.Range(
+                    entry.range.start.line,
+                    entry.range.start.character,
+                    entry.range.end.line,
+                    entry.range.end.character
+                );
+                return new vscode.DocumentSymbol(
+                    entry.name,
+                    entry.detail,
+                    vscode.SymbolKind.Namespace,
+                    range,
+                    range
+                );
+            });
+        } catch {
+            return [];
+        }
     }
 }
 
