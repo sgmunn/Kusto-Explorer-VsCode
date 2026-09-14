@@ -125,6 +125,11 @@
         "icon": "$(add)"
       },
       {
+        "command": "kustoTraceTools.importQueryParameterProfilesFromClipboard",
+        "title": "KustoTraceTools: Import Query Parameter Profiles from Clipboard JSON",
+        "icon": "$(json)"
+      },
+      {
         "command": "kustoTraceTools.editQueryParameterProfile",
         "title": "KustoTraceTools: Edit Active Query Parameter Profile",
         "icon": "$(edit)"

@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import { describe, expect, it } from 'vitest';
-import { generateParameterDeclaration, getQueryParameterFilePath, parseParameterFile, parseParameterValues, serializeParameterFile } from '../../features/queryParameterProfiles';
+import { generateParameterDeclaration, getQueryParameterFilePath, mergeImportedProfiles, parseParameterFile, parseParameterProfilesJson, parseParameterValues, serializeParameterFile } from '../../features/queryParameterProfiles';
 
 describe('query parameter profiles', () => {
     it('parses semicolon-separated parameter values', () => {
@@ -55,5 +55,61 @@ profiles:
 
     it('does not generate a declaration without parameters', () => {
         expect(generateParameterDeclaration({})).toBeUndefined();
+    });
+
+    it('converts one JSON object into a parameter profile', () => {
+        expect(parseParameterProfilesJson(JSON.stringify({
+            RootActivityId: '9014e5c7-4fce-4a39-9b0e-fea5572b6e88',
+            MinTimestamp: '2026-09-01T04:03:53.4650457Z',
+            Attempt: 3,
+            Enabled: true,
+        }))).toEqual([{
+            name: 'Group1',
+            values: {
+                RootActivityId: '9014e5c7-4fce-4a39-9b0e-fea5572b6e88',
+                MinTimestamp: '2026-09-01T04:03:53.4650457Z',
+                Attempt: '3',
+                Enabled: 'true',
+            },
+        }]);
+    });
+
+    it('converts arrays into groups and ignores nested, null, and invalid values', () => {
+        expect(parseParameterProfilesJson(JSON.stringify([
+            { Environment: 'Daily', Nested: { ignored: true }, Items: [1, 2], Missing: null },
+            { Cluster: 'pbipdailyeus2euap', 'invalid-name': 'ignored' },
+            'not an object',
+        ]))).toEqual([
+            { name: 'Group1', values: { Environment: 'Daily' } },
+            { name: 'Group2', values: { Cluster: 'pbipdailyeus2euap' } },
+        ]);
+    });
+
+    it('rejects invalid JSON and unsupported top-level values', () => {
+        expect(parseParameterProfilesJson('{ invalid')).toBeUndefined();
+        expect(parseParameterProfilesJson('42')).toBeUndefined();
+        expect(parseParameterProfilesJson('[{"Nested":{"ignored":true}}, {}]')).toBeUndefined();
+    });
+
+    it('merges imported profiles using available Group names and activates the first import', () => {
+        const existing = {
+            activeProfileName: 'Incident A',
+            profiles: [
+                { name: 'Incident A', values: { raid: 'abc' } },
+                { name: 'Group1', values: { old: 'one' } },
+                { name: 'Group3', values: { old: 'three' } },
+            ],
+        };
+        expect(mergeImportedProfiles(existing, [
+            { name: 'Group1', values: { Environment: 'Daily' } },
+            { name: 'Group2', values: { Cluster: 'pbipdailyeus2euap' } },
+        ])).toEqual({
+            activeProfileName: 'Group2',
+            profiles: [
+                ...existing.profiles,
+                { name: 'Group2', values: { Environment: 'Daily' } },
+                { name: 'Group4', values: { Cluster: 'pbipdailyeus2euap' } },
+            ],
+        });
     });
 });

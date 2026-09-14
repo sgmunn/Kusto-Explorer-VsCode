@@ -8,6 +8,7 @@ const STORAGE_KEY = 'kustoTraceTools.queryParameterProfiles';
 const INTEGER_PATTERN = /^[+-]?\d+$/;
 const REAL_PATTERN = /^[+-]?(?:\d+\.\d*|\d*\.\d+|\d+[eE][+-]?\d+|\d+\.\d*[eE][+-]?\d+|\d*\.\d+[eE][+-]?\d+)$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+const PARAMETER_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export interface QueryParameterProfile {
     name: string;
@@ -47,6 +48,48 @@ export function parseParameterValues(input: string): Record<string, string> | un
     return values;
 }
 
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Converts a JSON object or array of objects into numbered parameter profiles. */
+export function parseParameterProfilesJson(contents: string): QueryParameterProfile[] | undefined {
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(contents) as unknown;
+    } catch {
+        return undefined;
+    }
+
+    const groups = (Array.isArray(parsed) ? parsed : [parsed]).filter(isJsonObject);
+    if (!groups.length) return undefined;
+
+    const values = groups.map(group => Object.fromEntries(Object.entries(group).flatMap(([name, value]) =>
+            PARAMETER_NAME_PATTERN.test(name) && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+                ? [[name, String(value)]]
+                : [])))
+        .filter(groupValues => Object.keys(groupValues).length > 0);
+    return values.length
+        ? values.map((groupValues, index) => ({ name: `Group${index + 1}`, values: groupValues }))
+        : undefined;
+}
+
+/** Appends imported profiles under unused GroupN names and activates the first new group. */
+export function mergeImportedProfiles(stored: StoredProfiles, importedProfiles: readonly QueryParameterProfile[]): StoredProfiles {
+    const usedNames = new Set(stored.profiles.map(profile => profile.name));
+    let nextGroupNumber = 1;
+    const renamedProfiles = importedProfiles.map(profile => {
+        while (usedNames.has(`Group${nextGroupNumber}`)) nextGroupNumber++;
+        const name = `Group${nextGroupNumber++}`;
+        usedNames.add(name);
+        return { ...profile, name };
+    });
+    return {
+        activeProfileName: renamedProfiles[0]?.name ?? stored.activeProfileName,
+        profiles: [...stored.profiles, ...renamedProfiles],
+    };
+}
+
 function inferParameterType(value: string): 'string' | 'long' | 'real' | 'datetime' {
     if (ISO_DATE_PATTERN.test(value) && !Number.isNaN(Date.parse(value))) return 'datetime';
     if (INTEGER_PATTERN.test(value)) return 'long';
@@ -68,7 +111,7 @@ export function parseParameterFile(contents: string): StoredProfiles | undefined
         if (!values || typeof values !== 'object') return [];
         const normalized: Record<string, string> = {};
         for (const [key, value] of Object.entries(values)) {
-            if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || value === null || value === undefined) continue;
+            if (!PARAMETER_NAME_PATTERN.test(key) || value === null || value === undefined) continue;
             normalized[key] = String(value);
         }
         return [{ name, values: normalized }];
@@ -129,16 +172,32 @@ export class QueryParameterProfiles {
         const picked = await vscode.window.showQuickPick([
             ...stored.profiles.map(profile => ({ label: profile.name, description: this.describeValues(profile.values) })),
             { label: '$(add) Create parameter profile', description: 'Create a reusable set of values' },
+            { label: '$(json) Import profiles from clipboard JSON', description: 'Create Group1, Group2, ... from JSON objects' },
             { label: '$(circle-slash) No active profile', description: 'Run without extension parameters' },
         ], { placeHolder: 'Select query parameter profile' });
         if (!picked) return;
         if (picked.label === '$(add) Create parameter profile') return this.createProfileForTarget(target);
+        if (picked.label === '$(json) Import profiles from clipboard JSON') return this.importProfilesFromClipboard(target);
         stored.activeProfileName = picked.label === '$(circle-slash) No active profile' ? undefined : picked.label;
         await this.save(target);
     }
 
     async createProfile(): Promise<void> {
         return this.createProfileForTarget();
+    }
+
+    async importProfilesFromClipboard(existingTarget?: ProfileTarget): Promise<void> {
+        const target = existingTarget ?? await this.getTarget(this.activeQueryUri());
+        const contents = await vscode.env.clipboard.readText();
+        const parsedProfiles = parseParameterProfilesJson(contents);
+        if (!parsedProfiles) {
+            vscode.window.showErrorMessage('Clipboard must contain a JSON object or an array containing at least one object.');
+            return;
+        }
+
+        const stored = mergeImportedProfiles(target.stored, parsedProfiles);
+        await this.save({ ...target, stored });
+        vscode.window.showInformationMessage(`Imported ${parsedProfiles.length} parameter ${parsedProfiles.length === 1 ? 'group' : 'groups'} from the clipboard.`);
     }
 
     private async createProfileForTarget(existingTarget?: ProfileTarget): Promise<void> {

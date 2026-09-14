@@ -120,6 +120,7 @@ export async function activate(context: ExtensionContext)
     context.subscriptions.push(
         vscode.commands.registerCommand('kustoTraceTools.selectQueryParameterProfile', () => queryParameterProfiles.selectProfile()),
         vscode.commands.registerCommand('kustoTraceTools.createQueryParameterProfile', () => queryParameterProfiles.createProfile()),
+        vscode.commands.registerCommand('kustoTraceTools.importQueryParameterProfilesFromClipboard', () => queryParameterProfiles.importProfilesFromClipboard()),
         vscode.commands.registerCommand('kustoTraceTools.editQueryParameterProfile', () => queryParameterProfiles.editActiveProfile()),
         vscode.commands.registerCommand('kustoTraceTools.openQueryParameterFile', () => queryParameterProfiles.openParameterFile()),
         vscode.commands.registerCommand('kustoTraceTools.openQuerySpecificParameterFile', () => queryParameterProfiles.openQueryParameterFile()),
