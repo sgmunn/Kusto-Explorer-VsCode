@@ -15,7 +15,7 @@ import type { HistoryEntry } from './historyManager';
 import type { HistoryPanel } from './historyPanel';
 import { formatCfHtml, type ClipboardItem, type IClipboard } from './clipboard';
 import { ENTITY_DEFINITION_SCHEME } from './entityDefinitionProvider';
-import type { QueryParameterProfiles } from './queryParameterProfiles';
+import { generateParameterDeclaration, type QueryParameterProfiles } from './queryParameterProfiles';
 import { runCancellableQuery } from './queryCancellation';
 
 const PASTE_KIND = vscode.DocumentDropOrPasteEditKind.Text.append('kusto');
@@ -545,6 +545,34 @@ export class QueryEditor {
         editor.revealRange(new vscode.Range(start, end));
     }
 
+    /** Inserts declarations for the active parameter profile at the start of the selected query. */
+    async insertQueryParameterDeclaration(startLine?: number, startChar?: number, endLine?: number, endChar?: number): Promise<void> {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== 'kusto' || editor.document.uri.scheme === ENTITY_DEFINITION_SCHEME) return;
+
+        try {
+            const codeLensRange = rangeFromArgs(startLine, startChar, endLine, endChar);
+            const cursor = editor.selection.active;
+            const queryRange = codeLensRange ?? await this.server.getQueryRange(
+                editor.document.uri.toString(),
+                { line: cursor.line, character: cursor.character }
+            );
+            if (!queryRange) return;
+
+            const values = await this.parameterProfiles.getActiveValues(editor.document.uri);
+            const declaration = generateParameterDeclaration(values);
+            if (!declaration) {
+                vscode.window.showInformationMessage('The active query parameter profile has no parameters.');
+                return;
+            }
+
+            const position = new vscode.Position(queryRange.start.line, queryRange.start.character);
+            await editor.edit(editBuilder => editBuilder.insert(position, `${declaration}\n`));
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to insert query parameter declarations: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
     /**
      * Copies the query in the active document at the current cursor position or within the specified range.
      * When transparent is true, uses the server to generate light-mode HTML with a transparent
@@ -767,6 +795,13 @@ class KustoCodeLensProvider implements vscode.CodeLensProvider {
 
             // Hide Run, Format, and Results lenses in entity definition documents
             if (!isEntityDefinition) {
+                lenses.push(new vscode.CodeLens(vsRange, {
+                    title: '$(symbol-parameter) Parameters',
+                    command: 'kustoTraceTools.insertQueryParameterDeclaration',
+                    tooltip: 'Insert declarations for the active query parameter profile',
+                    arguments: [range.start.line, range.start.character, range.end.line, range.end.character]
+                }));
+
                 const isQueryRangeRunning = this.runningQueryRangeKeys.has(getQueryRangeKey(document.uri.toString(), range));
                 lenses.push(new vscode.CodeLens(vsRange, {
                     title: isQueryRangeRunning ? '$(sync~spin) Running' : '▶ Run',

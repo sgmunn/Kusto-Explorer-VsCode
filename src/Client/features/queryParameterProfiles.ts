@@ -5,6 +5,9 @@ import * as vscode from 'vscode';
 import { parse, stringify } from 'yaml';
 
 const STORAGE_KEY = 'kustoTraceTools.queryParameterProfiles';
+const INTEGER_PATTERN = /^[+-]?\d+$/;
+const REAL_PATTERN = /^[+-]?(?:\d+\.\d*|\d*\.\d+|\d+[eE][+-]?\d+|\d+\.\d*[eE][+-]?\d+|\d*\.\d+[eE][+-]?\d+)$/;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
 
 export interface QueryParameterProfile {
     name: string;
@@ -42,6 +45,19 @@ export function parseParameterValues(input: string): Record<string, string> | un
         values[match[1]!] = match[2]!.trim();
     }
     return values;
+}
+
+function inferParameterType(value: string): 'string' | 'long' | 'real' | 'datetime' {
+    if (ISO_DATE_PATTERN.test(value) && !Number.isNaN(Date.parse(value))) return 'datetime';
+    if (INTEGER_PATTERN.test(value)) return 'long';
+    if (REAL_PATTERN.test(value)) return 'real';
+    return 'string';
+}
+
+/** Generates a KQL declaration for a profile's parameter names and inferred scalar types. */
+export function generateParameterDeclaration(values: Readonly<Record<string, string>>): string | undefined {
+    const declarations = Object.entries(values).map(([name, value]) => `${name}:${inferParameterType(value)}`);
+    return declarations.length ? `declare query_parameters(${declarations.join(', ')});` : undefined;
 }
 
 /** Parses the workspace parameter-file format into the runtime profile model. */

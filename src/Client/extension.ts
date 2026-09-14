@@ -235,6 +235,7 @@ export async function activate(context: ExtensionContext)
         vscode.commands.registerCommand('kustoTraceTools.copyQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.copyQuery(startLine, startChar, endLine, endChar)),
         vscode.commands.registerCommand('kustoTraceTools.copyQueryTransparent', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.copyQuery(startLine, startChar, endLine, endChar, true)),
         vscode.commands.registerCommand('kustoTraceTools.formatQuery', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.formatQuery(startLine, startChar, endLine, endChar)),
+        vscode.commands.registerCommand('kustoTraceTools.insertQueryParameterDeclaration', (startLine?: number, startChar?: number, endLine?: number, endChar?: number) => queryEditor.insertQueryParameterDeclaration(startLine, startChar, endLine, endChar)),
         vscode.commands.registerCommand('kustoTraceTools.selectQuery', (startLine: number, startChar: number, endLine: number, endChar: number) => queryEditor.selectRange(startLine, startChar, endLine, endChar)),
         vscode.commands.registerCommand('kustoTraceTools.showResults', (startLine: number, startChar: number) => queryEditor.showHistoryResults(startLine, startChar)),
         vscode.commands.registerCommand('kustoTraceTools.refreshDocumentSchema', () => queryEditor.refreshDocumentSchema()),

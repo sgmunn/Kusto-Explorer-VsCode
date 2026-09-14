@@ -2,6 +2,8 @@
 // Licensed under the MIT license.
 
 import * as assert from 'assert';
+import * as os from 'os';
+import * as path from 'path';
 import * as vscode from 'vscode';
 
 import type { IServer, RunQueryResult, Range as ServerRange } from '../../features/server';
@@ -98,6 +100,33 @@ suite('Query Editor Integration Tests', () => {
         // End character should be the length of line 1
         const line1Length = doc.lineAt(1).text.length;
         assert.strictEqual(editor.selection.end.character, line1Length);
+    });
+
+    test('insertQueryParameterDeclaration inserts active query-scoped parameters at the query start', async () => {
+        const directory = vscode.Uri.file(path.join(os.tmpdir(), `kustotracetools-parameters-${Date.now()}`));
+        const queryUri = vscode.Uri.joinPath(directory, 'investigate.kql');
+        const parametersUri = vscode.Uri.joinPath(directory, 'investigate.parameters.yaml');
+        await vscode.workspace.fs.createDirectory(directory);
+
+        try {
+            await vscode.workspace.fs.writeFile(queryUri, Buffer.from('StormEvents | take limit'));
+            await vscode.workspace.fs.writeFile(parametersUri, Buffer.from(`active: Test
+profiles:
+  Test:
+    limit: 10
+    since: 2026-09-14T12:00:00Z
+    state: Texas
+`));
+            const document = await vscode.workspace.openTextDocument(queryUri);
+            await vscode.window.showTextDocument(document);
+
+            await vscode.commands.executeCommand('kustoTraceTools.insertQueryParameterDeclaration', 0, 0, 0, 24);
+
+            assert.strictEqual(document.getText(),
+                'declare query_parameters(limit:long, since:datetime, state:string);\nStormEvents | take limit');
+        } finally {
+            await vscode.workspace.fs.delete(directory, { recursive: true });
+        }
     });
 
     test('runQuery with mocked server displays results in bottom panel and history', async () => {

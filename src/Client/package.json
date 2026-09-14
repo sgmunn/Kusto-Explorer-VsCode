@@ -245,6 +245,11 @@
         "title": "Format Query"
       },
       {
+        "command": "kustoTraceTools.insertQueryParameterDeclaration",
+        "title": "Insert Query Parameter Declaration",
+        "icon": "$(symbol-parameter)"
+      },
+      {
         "command": "kustoTraceTools.copyEntityAsCommand",
         "title": "Copy as Command",
         "icon": "$(copy)"
@@ -744,6 +749,12 @@
         "command": "editor.action.triggerSuggest",
         "key": "ctrl+space",
         "when": "editorLangId == kusto"
+      },
+      {
+        "command": "kustoTraceTools.insertQueryParameterDeclaration",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p",
+        "when": "editorLangId == kusto && !kustoTraceTools.isEntityDefinition"
       },
       {
         "command": "kustoTraceTools.copyChart",

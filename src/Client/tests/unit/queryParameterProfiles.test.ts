@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import { describe, expect, it } from 'vitest';
-import { getQueryParameterFilePath, parseParameterFile, parseParameterValues, serializeParameterFile } from '../../features/queryParameterProfiles';
+import { generateParameterDeclaration, getQueryParameterFilePath, parseParameterFile, parseParameterValues, serializeParameterFile } from '../../features/queryParameterProfiles';
 
 describe('query parameter profiles', () => {
     it('parses semicolon-separated parameter values', () => {
@@ -36,5 +36,24 @@ profiles:
         expect(getQueryParameterFilePath('/queries/investigate.kql')).toBe('/queries/investigate.parameters.yaml');
         expect(getQueryParameterFilePath('/queries/INVESTIGATE.KQL')).toBe('/queries/INVESTIGATE.parameters.yaml');
         expect(getQueryParameterFilePath('/queries/investigate.csl')).toBeUndefined();
+    });
+
+    it('generates declarations using conservative scalar type inference', () => {
+        expect(generateParameterDeclaration({
+            text: '123abc',
+            count: '-42',
+            ratio: '1.25',
+            scientific: '6e4',
+            day: '2026-09-14',
+            timestamp: '2026-09-14T12:34:56Z',
+            ambiguousDate: '09/14/2026',
+            empty: '',
+        })).toBe(
+            'declare query_parameters(text:string, count:long, ratio:real, scientific:real, day:datetime, timestamp:datetime, ambiguousDate:string, empty:string);'
+        );
+    });
+
+    it('does not generate a declaration without parameters', () => {
+        expect(generateParameterDeclaration({})).toBeUndefined();
     });
 });
