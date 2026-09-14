@@ -4,10 +4,10 @@ Edit, run, and chart Kusto queries (KQL) right from VS Code. Explore databases a
 
 ## Install locally
 
-In VS Code, open the Extensions view and select **… → Install from VSIX…**, then choose `kustotracetools-1.0.1.vsix`. Reload VS Code if prompted. Alternatively:
+In VS Code, open the Extensions view and select **… → Install from VSIX…**, then choose `kustotracetools-1.0.2.vsix`. Reload VS Code if prompted. Alternatively:
 
 ```sh
-code --install-extension /path/to/kustotracetools-1.0.1.vsix
+code --install-extension /path/to/kustotracetools-1.0.2.vsix
 ```
 
 This package installs separately as `local.kustotracetools`, with its own connections, history, scratch pads, and `kustoTraceTools.*` settings. Existing Kusto Explorer data is not migrated automatically. Disable the original extension while using KustoTraceTools to avoid duplicate KQL language features and overlapping keyboard shortcuts.
