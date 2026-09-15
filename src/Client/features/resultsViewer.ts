@@ -180,6 +180,22 @@ function getPrimaryChart(resultData: server.ResultData | undefined): server.Resu
     return getResultCharts(resultData)[0];
 }
 
+function getChartIndex(viewId: string | undefined): number {
+    if (viewId === 'chart') {
+        return 0;
+    }
+    const match = viewId?.match(/^chart-(\d+)$/);
+    return match ? Number(match[1]) : 0;
+}
+
+function isChartView(viewId: string | undefined): boolean {
+    return viewId === 'chart' || /^chart-\d+$/.test(viewId ?? '');
+}
+
+function getChart(resultData: server.ResultData | undefined, index: number): server.ResultChart | undefined {
+    return getResultCharts(resultData)[index];
+}
+
 function getPrimaryChartOptions(resultData: server.ResultData | undefined, override?: server.ChartOptions): server.ChartOptions | undefined {
     return override ?? getPrimaryChart(resultData)?.options;
 }
@@ -214,6 +230,17 @@ function withPrimaryChartOptions(resultData: server.ResultData, options: server.
         delete updated.charts;
     }
     return updated;
+}
+
+function withChartOptions(resultData: server.ResultData, index: number, options: server.ChartOptions): server.ResultData {
+    const charts = getResultCharts(resultData);
+    if (!charts[index]) {
+        return resultData;
+    }
+    return {
+        ...resultData,
+        charts: charts.map((chart, chartIndex) => chartIndex === index ? { ...chart, options } : chart),
+    };
 }
 
 /** Base script injected into all result webviews for core message handling. */
@@ -1174,7 +1201,7 @@ export class ResultsViewer {
                 const state = this.viewerStates.get(this.singletonView);
                 const hasChart = !!getPrimaryChart(state?.resultData);
                 vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasChart', hasChart);
-                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', state?.activeView === 'chart');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', isChartView(state?.activeView));
                 vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', state?.activeView !== 'query');
             }
         });
@@ -1343,29 +1370,16 @@ export class ResultsViewer {
                 vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', true);
             }
         } else {
-            // Document view: remove chart from the data and update the document
-            const state = this.viewerStates.get(this.activeResultWebview);
-            if (!state) { return; }
-            const updated = withPrimaryChartOptions(state.resultData, undefined);
-            state.resultData = updated;
-            delete state.chartOptionsOverride;
-
-            // Find the backing document and update it
-            for (const doc of vscode.workspace.textDocuments) {
-                try {
-                    const parsed = JSON.parse(doc.getText()) as server.ResultData;
-                    if (parsed && this.viewerStates.get(this.activeResultWebview)?.resultData === updated) {
-                        const content = JSON.stringify(updated, null, 2);
-                        const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
-                        const edit = new vscode.WorkspaceEdit();
-                        edit.replace(doc.uri, fullRange, content);
-                        await vscode.workspace.applyEdit(edit);
-                        await doc.save();
-                        break;
-                    }
-                } catch { /* not a result document */ }
-            }
+            await this.htmlBuilder.removeActiveChart(this.activeResultWebview);
         }
+    }
+
+    /** Adds a chart to the active document-backed result and opens its editor. */
+    async addChart(): Promise<void> {
+        if (!this.activeResultWebview?.active || this.activeResultWebview === this.singletonView) {
+            return;
+        }
+        await this.htmlBuilder.addChart(this.activeResultWebview);
     }
 
     private disposeSingletonView(): void {
@@ -1722,6 +1736,57 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
     constructor(private readonly viewer: IViewerPanelState, private readonly chartProvider: IChartProvider, private readonly chartEditorProvider: IChartEditorProvider, private readonly dataTableProvider: IDataTableProvider) {
     }
 
+    async addChart(webviewPanel: vscode.WebviewPanel): Promise<void> {
+        const state = this.viewer.viewerStates.get(webviewPanel);
+        const document = this.getDocument(webviewPanel);
+        if (!state || !document || state.resultData.tables.length === 0) {
+            return;
+        }
+
+        const charts = getResultCharts(state.resultData);
+        const activeTableIndex = state.activeView.match(/^table-(\d+)$/)?.[1];
+        const activeChart = getChart(state.resultData, getChartIndex(state.activeView));
+        const table = activeTableIndex !== undefined
+            ? state.resultData.tables[Number(activeTableIndex)]
+            : state.resultData.tables.find(candidate => candidate.name === activeChart?.tableName) ?? state.resultData.tables[0];
+        const chart: server.ResultChart = {
+            name: `Chart ${charts.length + 1}`,
+            ...(table?.name ? { tableName: table.name } : {}),
+            options: { type: 'Column' },
+        };
+        state.resultData = { ...state.resultData, charts: [...charts, chart] };
+        state.activeView = `chart-${charts.length}`;
+        delete state.chartOptionsOverride;
+
+        await this.runSelfEdit(webviewPanel, () => persistResultDataToDocument(document, state.resultData));
+        await this.updateWebview(document, webviewPanel);
+        webviewPanel.webview.postMessage({ command: 'setEditPanelVisible', visible: true });
+    }
+
+    async removeActiveChart(webviewPanel: vscode.WebviewPanel): Promise<void> {
+        const state = this.viewer.viewerStates.get(webviewPanel);
+        const document = this.getDocument(webviewPanel);
+        if (!state || !document) {
+            return;
+        }
+
+        const chartIndex = getChartIndex(state.activeView);
+        const charts = getResultCharts(state.resultData).filter((_chart, index) => index !== chartIndex);
+        state.resultData = { ...state.resultData, charts };
+        state.activeView = charts.length > 0 ? `chart-${Math.min(chartIndex, charts.length - 1)}` : 'table-0';
+        delete state.chartOptionsOverride;
+
+        await this.runSelfEdit(webviewPanel, () => persistResultDataToDocument(document, state.resultData));
+        await this.updateWebview(document, webviewPanel);
+    }
+
+    private getDocument(webviewPanel: vscode.WebviewPanel): vscode.TextDocument | undefined {
+        const documentUri = this.viewer.webviewDocuments.get(webviewPanel);
+        return documentUri
+            ? vscode.workspace.textDocuments.find(document => document.uri.toString() === documentUri.toString())
+            : undefined;
+    }
+
     async resolveCustomTextEditor(
         document: vscode.TextDocument,
         webviewPanel: vscode.WebviewPanel,
@@ -1746,7 +1811,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         docChartView.onDidChangeViewState?.((state) => {
             const docState = this.viewer.viewerStates.get(webviewPanel);
             if (!docState?.resultData) return;
-            const raw = getPrimaryChart(docState.resultData);
+            const raw = getChart(docState.resultData, getChartIndex(docState.activeView));
             storeChartView(docState.resultData, {
                 ...state,
                 ...(raw?.name ? { name: raw.name } : {}),
@@ -1768,7 +1833,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
                 const state = this.viewer.viewerStates.get(webviewPanel);
                 const hasChart = !!getPrimaryChart(state?.resultData);
                 vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasChart', hasChart);
-                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', state?.activeView === 'chart');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', isChartView(state?.activeView));
                 vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', state?.activeView !== 'query');
                 vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasQuery', !!state?.resultData?.query);
             }
@@ -1782,8 +1847,8 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         docEditorView.onOptionsChanged = async (options) => {
             const state = this.viewer.viewerStates.get(webviewPanel);
             if (!state) { return; }
-            state.chartOptionsOverride = options;
-            state.resultData = withPrimaryChartOptions(state.resultData, state.chartOptionsOverride);
+            const chartIndex = getChartIndex(state.activeView);
+            state.resultData = withChartOptions(state.resultData, chartIndex, options);
             const content = JSON.stringify(state.resultData, null, 2);
             const fullRange = new vscode.Range(
                 document.positionAt(0),
@@ -1796,7 +1861,9 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
             });
             if (chartOptionsTimer) { clearTimeout(chartOptionsTimer); }
             chartOptionsTimer = setTimeout(async () => {
-                await this.updateChartOnly(state, webviewPanel);
+                if (isChartView(state.activeView) && getChartIndex(state.activeView) === chartIndex) {
+                    this.renderDocumentChart(state, webviewPanel);
+                }
                 await this.runSelfEdit(webviewPanel, async () => {
                     await document.save();
                 });
@@ -1813,8 +1880,11 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
                 const state = this.viewer.viewerStates.get(webviewPanel);
                 if (state) {
                     state.activeView = message.viewId;
+                    if (isChartView(message.viewId)) {
+                        this.renderDocumentChart(state, webviewPanel);
+                    }
                 }
-                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', message.viewId === 'chart');
+                vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', isChartView(message.viewId));
                 vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerShowingData', message.viewId !== 'query');
                 return;
             }
@@ -1909,21 +1979,28 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
 
         // Track viewer state for copy commands
         const tableNames = resultData.tables.map(t => t.name);
-        const firstActiveView = hasChart ? 'chart' : 'table-0';
         const existingState = this.viewer.viewerStates.get(webviewPanel);
+        const existingChartIndex = getChartIndex(existingState?.activeView);
+        const activeChartIndex = Math.min(existingChartIndex, Math.max(getResultCharts(resultData).length - 1, 0));
+        const firstActiveView = hasChart && isChartView(existingState?.activeView)
+            ? `chart-${activeChartIndex}`
+            : hasChart && !existingState
+                ? 'chart-0'
+                : !hasChart && isChartView(existingState?.activeView)
+                    ? 'table-0'
+                    : existingState?.activeView ?? 'table-0';
         const tableViewIndexes: Record<string, number> = {};
         this.viewer.viewerStates.set(webviewPanel, {
             resultData,
             tableNames,
             activeView: firstActiveView,
             tableViewIndexes,
-            ...(existingState?.chartOptionsOverride && { chartOptionsOverride: existingState.chartOptionsOverride })
         });
 
         // Update context keys after state is set (HTML rebuild always resets to firstActiveView)
         if (webviewPanel.active) {
             vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasChart', hasChart);
-            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', firstActiveView === 'chart');
+            vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerChartActive', isChartView(firstActiveView));
             // showingData is unconditionally true here because firstActiveView is only ever
             // 'chart' or 'table-0' — the rebuild discards any prior 'query' tab selection.
             // If updateWebview is ever changed to preserve the user's active tab across
@@ -1932,8 +2009,8 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
             vscode.commands.executeCommand('setContext', 'kustoTraceTools.resultViewerHasQuery', !!resultData?.query);
         }
 
-        const rawChart = getPrimaryChart(resultData);
-        const rawChartOptions = getPrimaryChartOptions(resultData, existingState?.chartOptionsOverride);
+        const rawChart = getChart(resultData, activeChartIndex);
+        const rawChartOptions = rawChart?.options;
         const chartOptions = rawChartOptions ? applyChartDefaults(rawChartOptions) : undefined;
         const chartDefaults = getChartDefaults();
         const chartTable = getPrimaryChartTable(resultData, rawChart);
@@ -2006,22 +2083,41 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
 
         const html = this.BuildMultiTabbedHtml(hasChart, 'all', docWebView, docEditorWebView, chartOptions,
             resultData.query, resultData.cluster, resultData.database, resultData.tables, docTableWebViews,
-            structuredTableWebViews);
+            structuredTableWebViews, resultData.charts, firstActiveView);
         webviewPanel.webview.html = injectMessageHandlerScripts(html);
     }
 
-    private async updateChartOnly(state: ResultViewerState, webviewPanel: vscode.WebviewPanel): Promise<void> {
-        const rawChart = getPrimaryChart(state.resultData);
-        const rawChartOptions = getPrimaryChartOptions(state.resultData, state.chartOptionsOverride);
-        if (!rawChartOptions) { return; }
-        const chartOptions = applyChartDefaults(rawChartOptions);
-        const modifiedData = withPrimaryChartOptions(state.resultData, chartOptions);
-        const darkMode = isDarkMode();
-        const table = getPrimaryChartTable(modifiedData, rawChart);
-        if (table) {
-            const controller = this.viewer.chartViews.get(webviewPanel);
-            controller?.renderChart(table, chartOptions, darkMode, { tables: modifiedData.tables }, findChartView(modifiedData, rawChart));
+    private renderDocumentChart(state: ResultViewerState, webviewPanel: vscode.WebviewPanel): void {
+        const chart = getChart(state.resultData, getChartIndex(state.activeView));
+        if (!chart) {
+            return;
         }
+        const chartOptions = applyChartDefaults(chart.options);
+        const table = getPrimaryChartTable(state.resultData, chart);
+        if (table) {
+            this.viewer.chartViews.get(webviewPanel)?.renderChart(
+                table,
+                chartOptions,
+                isDarkMode(),
+                { tables: state.resultData.tables },
+                findChartView(state.resultData, chart),
+            );
+        }
+        this.viewer.editorViews.get(webviewPanel)?.setOptions(
+            chart.options,
+            table?.columns.map(column => column.name) ?? [],
+            getChartDefaults(),
+            state.resultData.tables.map(resultTable => ({
+                name: resultTable.name,
+                columns: resultTable.columns.map(column => column.name),
+            })),
+            table?.name,
+        );
+        webviewPanel.webview.postMessage({
+            command: 'setChartPresentation',
+            aspectRatio: chartOptions.aspectRatio ?? ChartAspectRatio.Fill,
+            textSize: chartOptions.textSize === 'Auto' ? '' : chartOptions.textSize ?? '',
+        });
     }
 
     /*
@@ -2038,7 +2134,9 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         database?: string,
         resultTables?: server.ResultTable[],
         tableWebViews?: WebViewAdapter[],
-        structuredTableWebViews?: StructuredTableWebView[]
+        structuredTableWebViews?: StructuredTableWebView[],
+        charts?: server.ResultChart[],
+        requestedActiveView?: string,
     ): string {
         const tables = resultTables ?? [];
 
@@ -2047,8 +2145,9 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         const showQuery = !!queryText && (mode === 'detail' || mode === 'all');
 
         // Determine whether to show the tab bar
+        const chartTabCount = showChart ? Math.max(charts?.length ?? 0, 1) : 0;
         const visibleTabCount =
-            (showChart ? 1 : 0) +
+            chartTabCount +
             (showTables ? tables.length : 0) +
             (showTables ? (structuredTableWebViews?.length ?? 0) : 0) +
             (showQuery ? 1 : 0);
@@ -2060,7 +2159,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         // itself instead of waiting for the page-bottom activation script.
         // Initializing Simple-DataTables inside display:none can collapse the
         // leading row-number gutter in document-backed .ktt editors.
-        const firstActiveView = showChart ? 'chart' : 'table-0';
+        const firstActiveView = requestedActiveView ?? (charts?.length ? 'chart-0' : showChart ? 'chart' : 'table-0');
 
         // Build individual table divs with inline content from DataTableView
         const tableContents = showTables
@@ -2082,16 +2181,22 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         let tabButtons = '';
         if (showTabs) {
             const chartButton = showChart
-                ? `<button class="active" data-view="chart" onclick="switchView('chart')">Chart</button>`
+                ? (charts?.length
+                    ? charts.map((chart, index) => {
+                        const viewId = `chart-${index}`;
+                        const label = chart.name?.trim() || `Chart ${index + 1}`;
+                        return `<button${firstActiveView === viewId ? ' class="active"' : ''} data-view="${viewId}" onclick="switchView('${viewId}')">${this.escapeHtml(label)}</button>`;
+                    }).join('')
+                    : `<button class="active" data-view="chart" onclick="switchView('chart')">Chart</button>`)
                 : '';
 
             let tableButtonsHtml = '';
             if (showTables) {
                 if (tables.length === 1) {
-                    tableButtonsHtml = `<button${showChart ? '' : ' class="active"'} data-view="table-0" onclick="switchView('table-0')">Data</button>`;
+                    tableButtonsHtml = `<button${firstActiveView === 'table-0' ? ' class="active"' : ''} data-view="table-0" onclick="switchView('table-0')">Data</button>`;
                 } else {
                     tableButtonsHtml = tables.map((t, i) =>
-                        `<button${!showChart && i === 0 ? ' class="active"' : ''} data-view="table-${i}" onclick="switchView('table-${i}')">${this.escapeHtml(t.name)} (${t.rows.length})</button>`
+                        `<button${firstActiveView === `table-${i}` ? ' class="active"' : ''} data-view="table-${i}" onclick="switchView('table-${i}')">${this.escapeHtml(t.name)} (${t.rows.length})</button>`
                     ).join('');
                 }
                 tableButtonsHtml += (structuredTableWebViews ?? []).map(item => {
@@ -2226,7 +2331,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
     </div>` : ''}
     <div class="main-area">
         <div class="content-area">
-            ${showChart ? `<div id="chart" class="view-content${chartAspectClass}${firstActiveView === 'chart' ? ' active' : ''}"${chartStyle}${chartDataAttrs} data-vscode-context='{"chartVisible": true, "queryVisible": false, "preventDefaultContextMenuItems": true}'>${webview?.contentHtml ?? ''}</div>` : ''}
+            ${showChart ? `<div id="chart" class="view-content${chartAspectClass}${isChartView(firstActiveView) ? ' active' : ''}"${chartStyle}${chartDataAttrs} data-vscode-context='{"chartVisible": true, "queryVisible": false, "preventDefaultContextMenuItems": true}'>${webview?.contentHtml ?? ''}</div>` : ''}
             ${tableContents}
             ${structuredTableContents}
             ${showQuery ? `<div id="query" class="view-content" data-vscode-context='{"chartVisible": false, "queryVisible": true, "preventDefaultContextMenuItems": true}'>
@@ -2242,7 +2347,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
     <script>
         // Set initial active table view
         (function() {
-            var first = document.getElementById('${firstActiveView}');
+            var first = document.getElementById('${isChartView(firstActiveView) ? 'chart' : firstActiveView}');
             if (first) first.classList.add('active');
         })();
 
@@ -2252,7 +2357,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
         function switchView(viewId) {
             document.querySelectorAll('.view-content').forEach(function(el) { el.classList.remove('active'); });
             document.querySelectorAll('.view-toggle button[data-view]').forEach(function(el) { el.classList.remove('active'); });
-            var target = document.getElementById(viewId);
+            var target = document.getElementById(viewId.startsWith('chart-') ? 'chart' : viewId);
             if (target) {
                 target.classList.add('active');
                 target.dispatchEvent(new CustomEvent('kusto-view-activated'));
@@ -2271,7 +2376,7 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
             // Trigger chart resize when switching to chart. Use rAF (one frame,
             // ~16ms) instead of a fixed 50ms timeout so the resize happens as
             // soon as the browser has applied the new layout.
-            if (viewId === 'chart') {
+            if (viewId === 'chart' || viewId.startsWith('chart-')) {
                 requestAnimationFrame(function() {
                     if (window._chartResize) window._chartResize();
                 });
@@ -2316,6 +2421,18 @@ export class DocumentViewProvider implements vscode.CustomTextEditorProvider {
                 });
                 // Notify chart engine scripts to apply post-insertion overrides
                 if (window._chartUpdated) window._chartUpdated();
+                return;
+            }
+
+            if (msg.command === 'setChartPresentation') {
+                var presentationDiv = document.getElementById('chart');
+                if (!presentationDiv) return;
+                var hasAspectRatio = typeof msg.aspectRatio === 'string' && msg.aspectRatio !== 'Fill';
+                presentationDiv.classList.toggle('has-aspect-ratio', hasAspectRatio);
+                if (hasAspectRatio) presentationDiv.style.setProperty('--chart-aspect-ratio', msg.aspectRatio.replace(':', '/'));
+                else presentationDiv.style.removeProperty('--chart-aspect-ratio');
+                if (typeof msg.textSize === 'string' && msg.textSize) presentationDiv.dataset.textSize = msg.textSize;
+                else delete presentationDiv.dataset.textSize;
                 return;
             }
 

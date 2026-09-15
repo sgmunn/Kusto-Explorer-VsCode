@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import { CompositeChartProvider } from '../../features/compositeChartProvider';
 import { DocumentViewProvider, ResultsViewer, WebViewAdapter } from '../../features/resultsViewer';
-import type { ResultData, ResultTable } from '../../features/server';
+import type { ResultChart, ResultData, ResultTable } from '../../features/server';
 
 vi.mock('vscode', async (importOriginal) => {
     const original = await importOriginal<typeof import('vscode')>();
@@ -188,7 +188,7 @@ describe('DocumentViewProvider HTML', () => {
         rows: [['one']],
     };
 
-    function buildHtml(hasChart: boolean, includeStructured = false): string {
+    function buildHtml(hasChart: boolean, includeStructured = false, charts?: ResultChart[]): string {
         const builder = Object.create(DocumentViewProvider.prototype) as DocumentViewProvider;
         const tableWebView = { contentHtml: '<table data-test="result-grid"></table>' } as WebViewAdapter;
         const structuredWebView = { contentHtml: '<table data-test="structured-grid"></table>' } as WebViewAdapter;
@@ -204,6 +204,7 @@ describe('DocumentViewProvider HTML', () => {
             [table],
             [tableWebView],
             includeStructured ? [{ tableIndex: 0, webView: structuredWebView }] : undefined,
+            charts,
         );
     }
 
@@ -216,6 +217,7 @@ describe('DocumentViewProvider HTML', () => {
     it('keeps the table initially hidden when a chart is the first view', () => {
         const html = buildHtml(true);
 
+        expect(html).toContain('<div id="chart" class="view-content active"');
         expect(html).toContain('<div id="table-0" class="view-content"');
         expect(html).not.toContain('<div id="table-0" class="view-content active"');
     });
@@ -227,5 +229,81 @@ describe('DocumentViewProvider HTML', () => {
         expect(html).toContain('>Data - Structured</button>');
         expect(html).toContain('<div id="structured-table-0" class="view-content"');
         expect(html).toContain('<table data-test="structured-grid"></table>');
+    });
+
+    it('adds one selectable tab for each saved chart', () => {
+        const html = buildHtml(true, false, [
+            { name: 'Latency', options: { type: 'Line' } },
+            { name: 'Failures', options: { type: 'Column' } },
+        ]);
+
+        expect(html).toContain('data-view="chart-0"');
+        expect(html).toContain('>Latency</button>');
+        expect(html).toContain('data-view="chart-1"');
+        expect(html).toContain('>Failures</button>');
+    });
+});
+
+describe('DocumentViewProvider chart operations', () => {
+    function createProvider(activeView: string, charts: ResultChart[]) {
+        const panel = {
+            active: true,
+            webview: { postMessage: vi.fn() },
+        } as unknown as vscode.WebviewPanel;
+        const resultData: ResultData = {
+            tables: [{
+                name: 'PrimaryResult',
+                columns: [{ name: 'Value', type: 'long' }],
+                rows: [[1]],
+            }],
+            charts,
+        };
+        const state = { resultData, tableNames: ['PrimaryResult'], activeView };
+        const viewer = {
+            viewerStates: new Map([[panel, state]]),
+            webviewDocuments: new Map(),
+        };
+        const provider = new DocumentViewProvider(viewer as never, {} as never, {} as never, {} as never);
+        const document = {} as vscode.TextDocument;
+        const persist = vi.fn(async () => undefined);
+        const update = vi.fn(async () => undefined);
+        const internals = provider as unknown as {
+            getDocument: () => vscode.TextDocument;
+            runSelfEdit: (panel: vscode.WebviewPanel, work: () => Promise<void>) => Promise<void>;
+            updateWebview: (document: vscode.TextDocument, panel: vscode.WebviewPanel) => Promise<void>;
+        };
+        internals.getDocument = () => document;
+        internals.runSelfEdit = persist;
+        internals.updateWebview = update;
+        return { panel, provider, state, persist, update };
+    }
+
+    it('appends a chart without replacing existing charts', async () => {
+        const existingChart: ResultChart = { name: 'Latency', options: { type: 'Line' } };
+        const { panel, provider, state, persist, update } = createProvider('table-0', [existingChart]);
+
+        await provider.addChart(panel);
+
+        expect(state.resultData.charts).toEqual([
+            existingChart,
+            { name: 'Chart 2', tableName: 'PrimaryResult', options: { type: 'Column' } },
+        ]);
+        expect(state.activeView).toBe('chart-1');
+        expect(persist).toHaveBeenCalledOnce();
+        expect(update).toHaveBeenCalledOnce();
+        expect(panel.webview.postMessage).toHaveBeenCalledWith({ command: 'setEditPanelVisible', visible: true });
+    });
+
+    it('removes only the active chart and keeps the remaining chart selected', async () => {
+        const latency: ResultChart = { name: 'Latency', options: { type: 'Line' } };
+        const failures: ResultChart = { name: 'Failures', options: { type: 'Column' } };
+        const { panel, provider, state, persist, update } = createProvider('chart-1', [latency, failures]);
+
+        await provider.removeActiveChart(panel);
+
+        expect(state.resultData.charts).toEqual([latency]);
+        expect(state.activeView).toBe('chart-0');
+        expect(persist).toHaveBeenCalledOnce();
+        expect(update).toHaveBeenCalledOnce();
     });
 });

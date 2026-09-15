@@ -372,6 +372,11 @@
         "icon": "$(close)"
       },
       {
+        "command": "kustoTraceTools.addChart",
+        "title": "Add Chart",
+        "icon": "$(add)"
+      },
+      {
         "command": "kustoTraceTools.importConnectionsFromKustoExplorer",
         "title": "Import Connections",
         "icon": "$(cloud-download)"
@@ -650,6 +655,11 @@
           "group": "navigation@2"
         },
         {
+          "command": "kustoTraceTools.addChart",
+          "when": "activeWebviewPanelId == kustoTraceTools_resultViewer",
+          "group": "navigation@2.5"
+        },
+        {
           "command": "kustoTraceTools.saveSingletonResults",
           "when": "activeWebviewPanelId == kustoTraceTools_singletonView",
           "group": "navigation@3"
@@ -728,6 +738,10 @@
         {
           "command": "kustoTraceTools.removeChart",
           "when": "(webviewId == kustoTraceTools_singletonView && chartVisible) || (webviewId == kustoTraceTools_resultViewer && chartVisible)"
+        },
+        {
+          "command": "kustoTraceTools.addChart",
+          "when": "webviewId == kustoTraceTools_resultViewer && !queryVisible"
         },
         {
           "command": "kustoTraceTools.saveSingletonResults",

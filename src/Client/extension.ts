@@ -133,6 +133,7 @@ export async function activate(context: ExtensionContext)
         vscode.commands.registerCommand('kustoTraceTools.moveViewToMain', () => resultsViewer.moveResultsTabToMain()),
         vscode.commands.registerCommand('kustoTraceTools.toggleSearch', () => resultsViewer.toggleSearch()),
         vscode.commands.registerCommand('kustoTraceTools.removeChart', () => resultsViewer.removeChart()),
+        vscode.commands.registerCommand('kustoTraceTools.addChart', () => resultsViewer.addChart()),
         vscode.commands.registerCommand('kustoTraceTools.copyData', () => resultsViewer.copyData()),
         vscode.commands.registerCommand('kustoTraceTools.copyDataAsMarkdown', () => resultsViewer.copyDataAsMarkdown()),
         vscode.commands.registerCommand('kustoTraceTools.copyDataAsHtml', () => resultsViewer.copyDataAsHtml()),
