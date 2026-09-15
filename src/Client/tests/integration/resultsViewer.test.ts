@@ -164,7 +164,10 @@ suite('Results Viewer Integration Tests', () => {
     });
 
     test('Save panel results creates and opens a .ktt file', async () => {
-        const data = makeResultData();
+        const data = {
+            ...makeResultData(),
+            parameters: { state: 'Texas', minimumCount: '40' },
+        };
         await resultsViewer.displayResultsInBottomPanel(data, 'data');
 
         // Determine save path
@@ -191,6 +194,7 @@ suite('Results Viewer Integration Tests', () => {
         assert.strictEqual(parsed.tables.length, 1, 'Should have one table');
         assert.strictEqual(parsed.tables[0].name, 'PrimaryResult');
         assert.strictEqual(parsed.tables[0].rows.length, 2, 'Should have 2 rows');
+        assert.deepStrictEqual(parsed.parameters, data.parameters, 'Should preserve query parameters');
 
         // Verify the file was opened as a document tab
         const tab = await waitForTab(t => {

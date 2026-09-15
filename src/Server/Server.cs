@@ -2094,7 +2094,14 @@ public class Server : LspServer, ILogger, ISettingSource, IStorage, IAuthenticat
             {
                 return new RunQueryResult
                 {
-                    Data = runResult.ExecuteResult != null ? ResultData.FromExecuteResult(runResult.ExecuteResult, @params.Query, runResult.Cluster ?? @params.Cluster, runResult.Database ?? @params.Database) : null,
+                    Data = runResult.ExecuteResult != null
+                        ? ResultData.FromExecuteResult(
+                            runResult.ExecuteResult,
+                            @params.Query,
+                            runResult.Cluster ?? @params.Cluster,
+                            runResult.Database ?? @params.Database,
+                            parameters: queryParameters)
+                        : null,
                     Connection = runResult.Connection,
                     Cluster = runResult.Cluster,
                     Database = runResult.Database

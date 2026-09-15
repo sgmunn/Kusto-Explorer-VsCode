@@ -32,6 +32,12 @@ public class ResultData
     public string? Database { get; init; }
 
     /// <summary>
+    /// The query parameter values used to execute the query
+    /// </summary>
+    [DataMember(Name = "parameters")]
+    public ImmutableDictionary<string, string>? Parameters { get; init; }
+
+    /// <summary>
     /// The resulting data tables
     /// </summary>
     [DataMember(Name = "tables")]
@@ -51,8 +57,9 @@ public class ResultData
     /// <param name="cluster">The cluster where the query was executed.</param>
     /// <param name="database">The database where the query was executed.</param>
     /// <param name="tableName">Optional table name to filter to a specific table.</param>
+    /// <param name="parameters">The query parameter values used to execute the query.</param>
     /// <returns>The serializable result, or null if there are no tables.</returns>
-    public static ResultData FromExecuteResult(ExecuteResult executeResult, string? query = null, string? cluster = null, string? database = null, string? tableName = null)
+    public static ResultData FromExecuteResult(ExecuteResult executeResult, string? query = null, string? cluster = null, string? database = null, string? tableName = null, ImmutableDictionary<string, string>? parameters = null)
     {
         ImmutableList<ResultTable> resultTables = ImmutableList<ResultTable>.Empty;
 
@@ -74,6 +81,7 @@ public class ResultData
             Query = query,
             Cluster = cluster,
             Database = database,
+            Parameters = parameters,
             Tables = resultTables,
             Charts = executeResult.Charts
         };

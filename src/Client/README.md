@@ -70,6 +70,7 @@ KustoTraceTools is a locally maintained fork of Microsoft's Kusto Explorer for V
 ### Results Viewer (document tab)
 
 - Open saved `.ktt` files and legacy `.kqr` files — chart, data, and query in a single view
+- Rerun saved queries with their stored query parameter values
 - Add, edit, and remove persisted charts; saved result files can contain multiple named chart tabs
 - Tables containing `CurrentActivityId` and `ParentActivityId` gain a **Data - Structured** split view: a multi-root activity tree on the left and the standard event grid on the right, filtered to the selected activity
 - When results are configured for **Beside** or **Main**, each completed query opens in its own History-backed result tab by default

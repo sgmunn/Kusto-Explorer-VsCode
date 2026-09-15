@@ -557,6 +557,7 @@ export interface ResultData {
     query?: string;
     cluster?: string;
     database?: string;
+    parameters?: Record<string, string>;
     executionStartedAt?: string;
     executionDurationMs?: number;
     clientRequestId?: string;

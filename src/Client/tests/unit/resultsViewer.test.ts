@@ -12,8 +12,19 @@ vi.mock('vscode', async (importOriginal) => {
     return {
         ...original,
         commands: { executeCommand: vi.fn(async () => undefined) },
-        window: { ...original.window, activeColorTheme: { kind: 1 } },
+        window: {
+            ...original.window,
+            activeColorTheme: { kind: 1 },
+            withProgress: vi.fn(async (_options, task) => task(
+                { report: vi.fn() },
+                {
+                    isCancellationRequested: false,
+                    onCancellationRequested: vi.fn(() => ({ dispose: vi.fn() })),
+                },
+            )),
+        },
         ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3 },
+        ProgressLocation: { Notification: 15 },
     };
 });
 
@@ -305,5 +316,42 @@ describe('DocumentViewProvider chart operations', () => {
         expect(state.activeView).toBe('chart-0');
         expect(persist).toHaveBeenCalledOnce();
         expect(update).toHaveBeenCalledOnce();
+    });
+});
+
+describe('ResultsViewer saved query rerun', () => {
+    it('passes the stored query parameters to the server', async () => {
+        const panel = {} as vscode.WebviewPanel;
+        const documentUri = { toString: () => 'file:///results.ktt' } as vscode.Uri;
+        const parameters = { startTime: 'datetime(2026-09-01)', region: 'westus' };
+        const runQuery = vi.fn(async () => null);
+        const viewer = Object.create(ResultsViewer.prototype) as ResultsViewer;
+        Object.assign(viewer, {
+            activeResultWebview: panel,
+            webviewDocuments: new Map([[panel, documentUri]]),
+            viewerStates: new Map([[panel, {
+                resultData: {
+                    query: 'Events | where Timestamp >= startTime and Region == region',
+                    cluster: 'https://example.kusto.windows.net',
+                    database: 'Telemetry',
+                    parameters,
+                    tables: [],
+                },
+            }]]),
+            server: { runQuery },
+        });
+
+        await viewer.rerunQuery();
+
+        expect(runQuery).toHaveBeenCalledWith(
+            'Events | where Timestamp >= startTime and Region == region',
+            'https://example.kusto.windows.net',
+            'Telemetry',
+            true,
+            undefined,
+            undefined,
+            parameters,
+            expect.objectContaining({ isCancellationRequested: false }),
+        );
     });
 });

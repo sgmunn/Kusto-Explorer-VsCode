@@ -1569,7 +1569,7 @@ export class ResultsViewer {
             return;
         }
 
-        const { query, cluster, database } = state.resultData;
+        const { query, cluster, database, parameters } = state.resultData;
         const chartOptions = getPrimaryChartOptions(state.resultData);
 
         let cancellationToken: vscode.CancellationToken | undefined;
@@ -1578,7 +1578,7 @@ export class ResultsViewer {
                 { location: vscode.ProgressLocation.Notification, title: 'Rerunning query...', cancellable: true },
                 (_progress, token) => {
                     cancellationToken = token;
-                    return runCancellableQuery(token, () => this.server.runQuery(query, cluster, database, true, undefined, undefined, undefined, token));
+                    return runCancellableQuery(token, () => this.server.runQuery(query, cluster, database, true, undefined, undefined, parameters, token));
                 }
             );
             if (cancellationToken?.isCancellationRequested) { return; }
