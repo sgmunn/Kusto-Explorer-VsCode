@@ -152,12 +152,12 @@ npm run compile
 ## Packaging
 
 ```bash
-# Requires vsce: npm install -g @vscode/vsce
-cd src/Client
-npm run package
+./scripts/build-vsix.sh
 ```
 
-This will create a `.vsix` file that can be installed in VS Code.
+This builds the client and release server, then creates a versioned `.vsix` file in `src/Client`.
+Pass a path as the first argument to choose a different output location. The script downloads
+`@vscode/vsce` through `npx` when it is not already cached.
 
 ### Manual Install / Uninstall
 
